@@ -113,7 +113,7 @@ Located at [packages/example-fullstack-react](./packages/example-fullstack-react
 OctoPrompt. The project that inspired the creation of this websocket state manager. It is a local first Application for managing prompts for your programming projects as well as a robust chat system
 where you can chat with many cloud providers as well as several local providers like Ollama and LMStudio.
 
-Checkout out [OctoPrompt](https://github.com/brandon-schabel/octoprompt). OctoPrompt is built with a React Frontend a Bun Backend. The `@bnk/websocket-manager` and `@bnk/websocket-manager-react` are deeply integrated so it serves as a great example. It always syncs the state to a local sqlite DB to always persist the user state with very quick UI interactions.
+Checkout [OctoPrompt](https://github.com/brandon-schabel/octoprompt). OctoPrompt is built with a React Frontend a Bun Backend. The `@bnk/websocket-manager` and `@bnk/websocket-manager-react` are deeply integrated so it serves as a great example. It always syncs the state to a local sqlite DB to always persist the user state with very quick UI interactions.
 
 To run:
 
