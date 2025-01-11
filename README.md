@@ -15,8 +15,7 @@ A **highly-focused**, **pluggable**, and **well-tested** fullstack websocket bas
    - [Example: Vanilla](#example-vanilla)  
    - [Example: Full-Stack React](#example-full-stack-react)  
 5. [Basic Usage Snippet](#basic-usage-snippet)  
-6. [Contributing](#contributing)  
-7. [License](#license)
+6. [License](#license)
 
 ---
 
@@ -199,6 +198,9 @@ serve({
     },
     async message(ws, msg) {
       await manager.handleMessage(ws, msg.toString());
+
+      // broadcast update after handling message
+      await manager.broadcastState();
     },
   },
 });
