@@ -1,5 +1,5 @@
 {
-  "name": "@bnk/websocket-manager",
+  "name": "bnk-websocket-manager-example-vanilla",
   "module": "src/index.ts",
   "main": "src/index.ts",
   "type": "module",

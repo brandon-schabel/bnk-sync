@@ -1,64 +1,47 @@
-// client-websocket-context.tsx
-import React, {
-    createContext,
-    useContext,
-    useEffect,
-    useMemo,
-    useState,
-    useCallback,
-} from "react";
-import { 
-    ClientWebSocketManager, 
-    type ClientWebSocketManagerConfig,
-    type BaseServerMessage,
-    type BaseClientMessage 
-} from "./client-websocket-manager";
+import React, { createContext, useContext, useEffect, useMemo, useState, useCallback } from "react";
+import { ClientWebSocketManager, type ClientWebSocketManagerConfig } from "./client-websocket-manager";
+import type { BaseServerMessage, BaseClientMessage } from "./client-websocket-types";
 
+/** 
+ * 1) Create one context and export it. 
+ *    It must not be in a function or you’ll get a new instance each time.
+ */
+const WebSocketClientContext = createContext<
+    WebSocketClientContextValue<any, any> | null
+>(null);
+
+/** 
+ * 2) Define the shape of the value we’ll place into the Context.
+ */
 export interface WebSocketClientContextValue<
     TIncoming extends BaseServerMessage = BaseServerMessage,
     TOutgoing extends BaseClientMessage = BaseClientMessage
 > {
-    /**
-     * The low-level manager controlling our WebSocket connection.
-     */
     manager: ClientWebSocketManager<TIncoming, TOutgoing>;
-
-    /**
-     * Boolean indicating if the WebSocket is currently open.
-     * (We can track more granular states if needed: connecting, error, etc.)
-     */
     isOpen: boolean;
-
-    /**
-     * Send a typed message to the server.
-     */
     sendMessage: (msg: TOutgoing) => void;
-
-    /**
-     * Disconnect the WebSocket.
-     */
     disconnect: () => void;
 }
 
-const WebSocketClientContext = {
-    // Using a function to create the context allows us to maintain type safety
-    create: <
-        TIncoming extends BaseServerMessage = BaseServerMessage,
-        TOutgoing extends BaseClientMessage = BaseClientMessage
-    >() => createContext<WebSocketClientContextValue<TIncoming, TOutgoing> | null>(null)
-};
-
+/**
+ * 3) The Hook: 
+ *    Just read from the single context we exported above.
+ */
 export function useWebSocketClient<
     TIncoming extends BaseServerMessage = BaseServerMessage,
     TOutgoing extends BaseClientMessage = BaseClientMessage
 >(): WebSocketClientContextValue<TIncoming, TOutgoing> {
-    const ctx = useContext(WebSocketClientContext.create<TIncoming, TOutgoing>());
+    const ctx = useContext(WebSocketClientContext);
     if (!ctx) {
         throw new Error("useWebSocketClient must be used within a <WebSocketClientProvider>.");
     }
-    return ctx;
+    return ctx as WebSocketClientContextValue<TIncoming, TOutgoing>;
 }
 
+/** 
+ * 4) The Provider: 
+ *    Use the *same* shared context object for the Provider.
+ */
 export interface WebSocketClientProviderProps<
     TIncoming extends BaseServerMessage = BaseServerMessage,
     TOutgoing extends BaseClientMessage = BaseClientMessage
@@ -66,19 +49,15 @@ export interface WebSocketClientProviderProps<
     children: React.ReactNode;
 }
 
-/**
- * This provider sets up a ClientWebSocketManager and passes it
- * (plus some convenience state and methods) to all descendants.
- */
 export function WebSocketClientProvider<
-    TIncoming extends BaseServerMessage = BaseServerMessage,
-    TOutgoing extends BaseClientMessage = BaseClientMessage
+    TIncoming extends BaseServerMessage,
+    TOutgoing extends BaseClientMessage
 >(props: WebSocketClientProviderProps<TIncoming, TOutgoing>) {
     const { children, ...managerConfig } = props;
     const [isOpen, setIsOpen] = useState(false);
-    const Context = WebSocketClientContext.create<TIncoming, TOutgoing>();
 
-    // Create the manager on mount. UseMemo ensures we only create once per config change.
+    // We create the manager only once (or only when needed),
+    // instead of re-creating a brand new context each render.
     const manager = useMemo(() => {
         return new ClientWebSocketManager<TIncoming, TOutgoing>({
             ...managerConfig,
@@ -91,26 +70,18 @@ export function WebSocketClientProvider<
                 managerConfig.onClose?.(event);
             },
         });
-        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [managerConfig.url, managerConfig.debug]);
 
-    // Clean up by disconnecting on unmount.
     useEffect(() => {
-        return () => {
-            manager.disconnect();
-        };
+        // On unmount, close the socket
+        return () => manager.disconnect();
     }, [manager]);
 
-    /**
-     * Helper to send a typed message
-     */
+    // Optional callbacks
     const sendMessage = useCallback((msg: TOutgoing) => {
         manager.sendMessage(msg);
     }, [manager]);
 
-    /**
-     * Helper to manually disconnect
-     */
     const disconnect = useCallback(() => {
         manager.disconnect();
     }, [manager]);
@@ -123,8 +94,8 @@ export function WebSocketClientProvider<
     };
 
     return (
-        <Context.Provider value={value}>
+        <WebSocketClientContext.Provider value={value}>
             {children}
-        </Context.Provider>
+        </WebSocketClientContext.Provider>
     );
 }

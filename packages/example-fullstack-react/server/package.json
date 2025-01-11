@@ -7,7 +7,6 @@
         "dev": "bun run src/index.ts"
     },
     "dependencies": {
-        "@bnk/websocket-manager-react": "^1.0.5",
         "shared-types": "workspace:*"
     }
 }

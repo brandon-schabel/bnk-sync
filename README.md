@@ -1,6 +1,6 @@
 # BNK WebSocket Monorepo
 
-A **highly-focused**, **pluggable**, and **well-tested** monorepo for building real-time apps with Bun and TypeScript. This workspace contains two core packages—**@bnk/websocket-manager** (server-side) and **@bnk/websocket-manager-react** (client-side for React)—as well as example projects demonstrating basic and full-stack integrations.
+A **highly-focused**, **pluggable**, and **well-tested** fullstack websocket based state management solution for building real-time apps with Bun and TypeScript. This workspace contains two core packages—**@bnk/websocket-manager** (server-side) and **@bnk/websocket-manager-react** (client-side for React)—as well as example projects demonstrating basic and full-stack integrations.
 
 ---
 
@@ -107,6 +107,17 @@ Located at [packages/example-fullstack-react](./packages/example-fullstack-react
 - **Server**: A Bun server using `@bnk/websocket-manager`.  
 - **Client**: A React app using `@bnk/websocket-manager-react`.  
 - **Shared Types**: A `shared-types` package so that both server and client share the same message interfaces.
+
+
+
+### Example: OctoPrompt Project
+
+The project that inspired the creation of this websocket state manager. OctoPrompt is a local first Application for managing prompts for your programming projects as well as a robust chat system 
+where you can chat with many cloud providers as well as several local providers like Ollama and LMStudio.
+
+
+Checkout out [Octoprompt](https://github.com/brandon-schabel/octoprompt) Octoprompt is built with a React Frontend a Bun Backend. The `@bnk/websocket-manager` and `@bnk/websocket-manager-react` are deeply integration into OctoPrompt so it serves as a great example. It always syncs the state to a local sqlite DB to always persist the user state with very quick UI interactions.
+
 
 To run:
 
