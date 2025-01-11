@@ -13,7 +13,8 @@ A **highly-focused**, **pluggable**, and **well-tested** fullstack websocket bas
 3. [Installation](#installation)  
 4. [Examples](#examples)  
    - [Example: Vanilla](#example-vanilla)  
-   - [Example: Full-Stack React](#example-full-stack-react)  
+   - [Example: Full-Stack React](#example-full-stack-react)
+   - [Example: OctoPrompt Project](#example-octoprompt-project)
 5. [Basic Usage Snippet](#basic-usage-snippet)  
 6. [License](#license)
 
