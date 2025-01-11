@@ -1,0 +1,18 @@
+{
+  "name": "bnk-websocket",
+  "module": "index.ts",
+  "type": "module",
+  "workspaces": [
+    "packages/*",
+    "packages/example-fullstack-react/*"
+  ],
+  "devDependencies": {
+    "@types/bun": "latest"
+  },
+  "peerDependencies": {
+    "typescript": "^5.7.2"
+  },
+  "dependencies": {
+    "@bnk/router": "1.0.5"
+  }
+}
