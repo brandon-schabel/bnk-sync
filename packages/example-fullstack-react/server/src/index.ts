@@ -1,6 +1,6 @@
 import { serve } from "bun";
 import {
-    WebSocketManager,
+    BackendWebSocketManager,
     type BaseMessage,
     type MessageHandler
 } from "@bnk/backend-websocket-manager";
@@ -52,7 +52,7 @@ async function setState(newState: ChatAppState): Promise<void> {
 /**
  * Create the manager with a debug flag to see logs in the console.
  */
-const manager = new WebSocketManager<ChatAppState, OutgoingClientMessage>({
+const manager = new BackendWebSocketManager<ChatAppState, OutgoingClientMessage>({
     getState,
     setState,
     messageHandlers: [chatHandler],

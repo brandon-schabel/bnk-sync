@@ -1,12 +1,11 @@
 // File: packages/websocket-react-example/client/src/App.tsx
 import { useContext, useState } from "react";
-import { useWebSocketClient } from "@bnk/react-websocket-manager";
-import { MessageLogContext } from "./chat-web-socket-provider";
+import { MessageLogContext, useChatWebSocket } from "./chat-web-socket-provider";
 import { } from "@bnk/react-websocket-manager";
 
 function App() {
   // Grab our WebSocket context to send messages or manually disconnect if needed
-  const { sendMessage, isOpen } = useWebSocketClient();
+  const { sendMessage, isOpen } = useChatWebSocket();
 
   // Grab the chat log from the ChatWebSocketProvider
   const { messageLog } = useContext(MessageLogContext);
@@ -20,14 +19,13 @@ function App() {
    */
   const sendChat = () => {
     if (!text.trim()) return;
-    const msg = {
-      type: "chat",
-      payload: {
-        text: text.trim(),
+
+    sendMessage({
+      type: 'chat', payload: {
         sender: sender.trim() || "Anonymous",
+        text: text.trim(),
       }
-    };
-    sendMessage(msg);
+    });
     setText("");
   };
 

@@ -1,12 +1,13 @@
-import React, { useState } from "react";
-import {
-    WebSocketClientProvider,
-    type ClientWebSocketManagerConfig,
-} from "@bnk/react-websocket-manager";
+import React, { useContext, useMemo, useState } from "react";
+import { ClientWebSocketManager, ClientWebSocketManagerConfig } from '@bnk/client-websocket-manager'
 import {
     IncomingServerMessage,
     OutgoingClientMessage,
 } from "shared-types";
+import { useClientWebSocket } from "@bnk/react-websocket-manager";
+
+export type GlobalWebsocketManagerConfig = ClientWebSocketManagerConfig<IncomingServerMessage, OutgoingClientMessage>
+
 
 /**
  * We'll store our chat log in React state. The server will send us 
@@ -20,7 +21,7 @@ export function ChatWebSocketProvider({ children }: { children: React.ReactNode 
      * This type ensures we only allow known message types:
      * "initial_state" | "state_update"
      */
-    const messageHandlers: ClientWebSocketManagerConfig<IncomingServerMessage, OutgoingClientMessage>["messageHandlers"] = {
+    const messageHandlers: GlobalWebsocketManagerConfig['messageHandlers'] = useMemo(() => ({
 
         // On initial_state, the server provides the full ChatAppState
         initial_state: (msg) => {
@@ -32,15 +33,11 @@ export function ChatWebSocketProvider({ children }: { children: React.ReactNode 
             // msg is `Extract<IncomingServerMessage, { type: 'state_update' }>`
             setMessageLog(msg.data.messageLog);
         },
-    };
+    }), []);
 
-    /**
-     * For the client->server messages, we can define them below or inside other components.
-     * Example: sending a new chat message of type = "chat".
-     */
 
     // Our config object, passed to WebSocketClientProvider
-    const wsConfig: ClientWebSocketManagerConfig<IncomingServerMessage, OutgoingClientMessage> = {
+    const wsConfig: GlobalWebsocketManagerConfig = {
         url: "ws://localhost:3007/ws",
         debug: true,
         messageHandlers,
@@ -55,12 +52,17 @@ export function ChatWebSocketProvider({ children }: { children: React.ReactNode 
         },
     };
 
+    const { sendMessage, isOpen, disconnect, manager } = useClientWebSocket<IncomingServerMessage, OutgoingClientMessage>({ config: wsConfig });
+
+
+    /**
+     * For the client->server messages, we can define them below or inside other components.
+     * Example: sending a new chat message of type = "chat".
+     */
     return (
-        <WebSocketClientProvider<IncomingServerMessage, OutgoingClientMessage> {...wsConfig}>
-            <MessageLogContext.Provider value={{ messageLog, setMessageLog }}>
-                {children}
-            </MessageLogContext.Provider>
-        </WebSocketClientProvider>
+        <MessageLogContext.Provider value={{ messageLog, setMessageLog, sendMessage, isOpen, disconnect, manager }}>
+            {children}
+        </MessageLogContext.Provider>
     );
 }
 
@@ -70,8 +72,26 @@ export function ChatWebSocketProvider({ children }: { children: React.ReactNode 
 interface IMessageLogContext {
     messageLog: string[];
     setMessageLog: React.Dispatch<React.SetStateAction<string[]>>;
+    sendMessage: (msg: OutgoingClientMessage) => void;
+    isOpen: boolean;
+    disconnect: () => void;
+    manager: ClientWebSocketManager<IncomingServerMessage, OutgoingClientMessage> | null
 }
 export const MessageLogContext = React.createContext<IMessageLogContext>({
     messageLog: [],
-    setMessageLog: () => { }
+    setMessageLog: () => { },
+    sendMessage: () => { },
+    isOpen: false,
+    disconnect: () => { },
+    manager: null
 });
+
+
+
+export const useChatWebSocket = () => {
+    const context = useContext(MessageLogContext);
+    if (!context) {
+        throw new Error("useChatWebSocket must be used within a ChatWebSocketProvider");
+    }
+    return context;
+}
