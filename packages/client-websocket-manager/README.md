@@ -114,7 +114,7 @@ const manager = new ClientWebSocketManager<MyServerMessage, MyClientMessage>({
 ```
 
 ### Integration with a Backend Manager
-In many scenarios, you’ll pair this client with a server-side manager (for instance, the **@bnk/websocket-manager**). Below is a simplified illustration of how that might look:
+In many scenarios, you’ll pair this client with a server-side manager (for instance, the **@bnk/backend-websocket-manager**). Below is a simplified illustration of how that might look:
 
 **Server (TypeScript/Bun)**:
 ```ts
@@ -123,7 +123,7 @@ import {
   BackendWebSocketManager,
   type BaseMessage,
   type MessageHandler,
-} from "@bnk/websocket-manager";
+} from "@bnk/backend-websocket-manager";
 
 // Example state
 interface MyServerState {

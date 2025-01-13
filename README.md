@@ -11,7 +11,7 @@ A modern, type-safe, and performant React WebSocket interface built entirely on 
 3. [Usage Examples](#usage-examples)  
    - [Basic React Usage](#basic-react-usage)  
    - [Using the Provided Hook](#using-the-provided-hook)  
-   - [Fullstack Integration With @bnk/websocket-manager](#fullstack-integration-with-bnkwebsocket-manager)  
+   - [Fullstack Integration With @bnk/backend-websocket-manager](#fullstack-integration-with-bnkwebsocket-manager)  
 4. [API Documentation](#api-documentation)  
    - [Types](#types)  
    - [ClientWebSocketManager](#clientwebsocketmanager)  
@@ -34,7 +34,7 @@ A modern, type-safe, and performant React WebSocket interface built entirely on 
 - Offer **minimal** external dependencies (none besides React).  
 - Ensure an ergonomic developer experience, with advanced TypeScript usage (generics, mapped types, intersection types, etc.).
 
-This library pairs seamlessly with [`@bnk/websocket-manager`](https://www.npmjs.com/package/@bnk/websocket-manager) on the backend, letting you build a complete fullstack WebSocket solution in a type-safe manner.
+This library pairs seamlessly with [`@bnk/backend-websocket-manager`](https://www.npmjs.com/package/@bnk/backend-websocket-manager) on the backend, letting you build a complete fullstack WebSocket solution in a type-safe manner.
 
 ---
 
@@ -44,18 +44,6 @@ Using Bun:
 
 ```bash
 bun add @bnk/react-websocket-manager
-```
-
-Using npm:
-
-```bash
-npm install @bnk/react-websocket-manager
-```
-
-Using yarn:
-
-```bash
-yarn add @bnk/react-websocket-manager
 ```
 
 ---
@@ -165,11 +153,11 @@ function MyComponent() {
 export default MyComponent;
 ```
 
-### **Fullstack Integration With `@bnk/websocket-manager`**
+### **Fullstack Integration With `@bnk/backend-websocket-manager`**
 
 Below is an outline demonstrating how you might integrate the React library on the frontend with the Bun-based WebSocket manager on the backend.
 
-#### Backend (Bun + `@bnk/websocket-manager`)
+#### Backend (Bun + `@bnk/backend-websocket-manager`)
 
 ```ts
 // server.ts
@@ -178,7 +166,7 @@ import {
   BackendWebSocketManager,
   type BaseMessage,
   type MessageHandler
-} from "@bnk/websocket-manager";
+} from "@bnk/backend-websocket-manager";
 
 // Example state and message definitions
 interface MyState {
