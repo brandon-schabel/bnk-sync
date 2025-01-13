@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
     ClientWebSocketManager,
 } from "@bnk/client-websocket-manager";
@@ -13,6 +13,11 @@ export interface UseClientWebSocketConfig<
     TOutgoing extends BaseClientMessage = BaseClientMessage
 > extends Partial<ClientWebSocketManagerConfig<TIncoming, TOutgoing>> {
     manager?: ClientWebSocketManager<TIncoming, TOutgoing>;
+    // TODO: Add these on the manager 
+    // onManagerInstantiated?: (manager: ClientWebSocketManager<TIncoming, TOutgoing>) => void;
+    // onMessageReceived?: (message: TIncoming) => void;
+    // onMessageSent?: (message: TOutgoing) => void;
+    // onDisconnect?: () => void;
 }
 
 export function useClientWebSocket<
@@ -20,43 +25,42 @@ export function useClientWebSocket<
     TOutgoing extends BaseClientMessage = BaseClientMessage
 >(config: UseClientWebSocketConfig<TIncoming, TOutgoing>) {
     const [isOpen, setIsOpen] = useState(false);
+    const managerRef = useRef<ClientWebSocketManager<TIncoming, TOutgoing> | null>(null);
 
-    // Conditionally create the manager if none was provided
-    const manager = useMemo(() => {
+    // Initialize WebSocket manager only if it doesn't already exist
+    if (!managerRef.current) {
         if (config.manager) {
-            return config.manager;
-        }
-
-        // If we get here, we must have a URL to create a new manager
-        if (!config.url) {
+            managerRef.current = config.manager;
+        } else if (config.url) {
+            managerRef.current = new ClientWebSocketManager<TIncoming, TOutgoing>({
+                url: config.url,
+                debug: config.debug,
+                messageHandlers: config.messageHandlers,
+                onOpen: () => {
+                    setIsOpen(true);
+                    config.onOpen?.();
+                },
+                onClose: (event) => {
+                    setIsOpen(false);
+                    config.onClose?.(event);
+                },
+                onError: config.onError,
+            });
+        } else {
             throw new Error(
                 "useClientWebSocket error: 'url' is required if no existing manager is provided."
             );
         }
+    }
 
-        return new ClientWebSocketManager<TIncoming, TOutgoing>({
-            // non-null assertion because we just checked
-            url: config.url!,
-            debug: config.debug,
-            messageHandlers: config.messageHandlers,
-            onOpen: () => {
-                setIsOpen(true);
-                config.onOpen?.();
-            },
-            onClose: (event) => {
-                setIsOpen(false);
-                config.onClose?.(event);
-            },
-            onError: config.onError,
-        });
-    }, [config, setIsOpen]);
+    const manager = managerRef.current;
 
     useEffect(() => {
-        if (!config.manager) {
-            return () => {
+        return () => {
+            if (!config.manager) {
                 manager.disconnect();
-            };
-        }
+            }
+        };
     }, [manager, config.manager]);
 
     const sendMessage = useCallback(
