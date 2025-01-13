@@ -388,8 +388,6 @@ If you need watch mode:
 bun test --watch
 ```
 
-You can easily write tests for your React components, such as verifying that the hook updates `isOpen` as expected or that messages are sent. Tools like [React Testing Library](https://testing-library.com/docs/react-testing-library/intro/) or [Jest](https://jestjs.io/) can be used alongside Bun’s built-in test runner.
-
 ---
 
 ## **Contributing**
