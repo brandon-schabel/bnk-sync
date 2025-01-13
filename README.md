@@ -25,8 +25,10 @@ A modern, type-safe, and performant React WebSocket interface built entirely on 
 ---
 
 ## **Introduction**
-`@bnk/backend-websocket-manager` - this is the required backend package
-`@bnk/client-websocket-manager` - this is the required frontend client 
+`@bnk/backend-websocket-manager` - Required backend package
+
+`@bnk/client-websocket-manager` - Required frontend client package
+
 `@bnk/react-websocket-manager` is an optional React-specific wrapper around the core client WebSocket logic from [`@bnk/client-websocket-manager`](https://www.npmjs.com/package/@bnk/client-websocket-manager). Its primary goal is to:
 
 - Provide a **modern**, **type-safe** interface for WebSockets in React applications.  
