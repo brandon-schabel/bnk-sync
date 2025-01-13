@@ -11,8 +11,9 @@ import type {
 export interface UseClientWebSocketConfig<
     TIncoming extends BaseServerMessage = BaseServerMessage,
     TOutgoing extends BaseClientMessage = BaseClientMessage
-> extends Partial<ClientWebSocketManagerConfig<TIncoming, TOutgoing>> {
+> {
     manager?: ClientWebSocketManager<TIncoming, TOutgoing>;
+    config?: Partial<ClientWebSocketManagerConfig<TIncoming, TOutgoing>>
     // TODO: Add these on the manager 
     // onManagerInstantiated?: (manager: ClientWebSocketManager<TIncoming, TOutgoing>) => void;
     // onMessageReceived?: (message: TIncoming) => void;
@@ -23,17 +24,24 @@ export interface UseClientWebSocketConfig<
 export function useClientWebSocket<
     TIncoming extends BaseServerMessage = BaseServerMessage,
     TOutgoing extends BaseClientMessage = BaseClientMessage
->(config: UseClientWebSocketConfig<TIncoming, TOutgoing>) {
+>({ config, manager: managerProp }: UseClientWebSocketConfig<TIncoming, TOutgoing>) {
     const [isOpen, setIsOpen] = useState(false);
     const managerRef = useRef<ClientWebSocketManager<TIncoming, TOutgoing> | null>(null);
 
     // Initialize WebSocket manager only if it doesn't already exist
     if (!managerRef.current) {
-        if (config.manager) {
-            managerRef.current = config.manager;
-        } else if (config.url) {
+
+        if (config && !config.url) {
+            throw new Error(
+                "useClientWebSocket error: 'url' is required if no existing manager is provided."
+            );
+        }
+
+        if (managerProp) {
+            managerRef.current = managerProp;
+        } else if (config) {
             managerRef.current = new ClientWebSocketManager<TIncoming, TOutgoing>({
-                url: config.url,
+                url: config.url ?? 'no-url',
                 debug: config.debug,
                 messageHandlers: config.messageHandlers,
                 onOpen: () => {
@@ -46,10 +54,6 @@ export function useClientWebSocket<
                 },
                 onError: config.onError,
             });
-        } else {
-            throw new Error(
-                "useClientWebSocket error: 'url' is required if no existing manager is provided."
-            );
         }
     }
 
@@ -57,21 +61,21 @@ export function useClientWebSocket<
 
     useEffect(() => {
         return () => {
-            if (!config.manager) {
-                manager.disconnect();
+            if (!manager) {
+                managerRef.current?.disconnect();
             }
         };
-    }, [manager, config.manager]);
+    }, [manager, managerProp]);
 
     const sendMessage = useCallback(
         (msg: TOutgoing) => {
-            manager.sendMessage(msg);
+            manager?.sendMessage(msg);
         },
         [manager]
     );
 
     const disconnect = useCallback(() => {
-        manager.disconnect();
+        manager?.disconnect();
     }, [manager]);
 
     return {
