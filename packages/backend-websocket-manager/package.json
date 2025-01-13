@@ -1,5 +1,5 @@
 {
-  "name": "@bnk/websocket-manager",
+  "name": "@bnk/backend-websocket-manager",
   "module": "src/index.ts",
   "main": "src/index.ts",
   "type": "module",
@@ -8,8 +8,7 @@
     "test": "bun test src/",
     "test:watch": "bun test --watch src/",
     "prepublishOnly": "bun test",
-    "publish:websocket-manager": "bun publish --access public",
-    "dev:example": "bun run src/example/example-bun-server.ts"
+    "publish:backend-websocket-manager": "bun publish --access public"
   },
   "devDependencies": {
     "bun-types": "latest",

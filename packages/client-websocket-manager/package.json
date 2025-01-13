@@ -1,0 +1,25 @@
+{
+  "name": "@bnk/client-websocket-manager",
+  "type": "module",
+  "main": "dist/client-websocket-manager.cjs.js",
+  "module": "dist/client-websocket-manager.es.js",
+  "types": "dist/types/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "version": "1.0.0",
+  "scripts": {
+    "test": "bun test src/",
+    "test:watch": "bun test --watch src/",
+    "prepublishOnly": "bun test && bun run build",
+    "publish:client-websocket-manager": "bun publish --access public",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "devDependencies": {
+    "bun-types": "latest",
+    "typescript": "^5.7.2",
+    "vite": "^6.0.5",
+    "vite-plugin-dts": "^4.5.0"
+  }
+}

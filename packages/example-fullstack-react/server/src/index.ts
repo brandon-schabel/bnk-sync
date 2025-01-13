@@ -3,7 +3,7 @@ import {
     WebSocketManager,
     type BaseMessage,
     type MessageHandler
-} from "@bnk/websocket-manager";
+} from "@bnk/backend-websocket-manager";
 
 import type {
     ChatAppState,

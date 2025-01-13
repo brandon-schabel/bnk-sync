@@ -1,11 +1,11 @@
 import type { ServerWebSocket } from "bun";
-import type { BaseMessage, MessageHandler } from "./websocket-types";
+import type { BaseMessage, MessageHandler } from "./backend-websocket-types";
 
 /**
  * Hooks that can be provided to the WebSocketManager for executing
  * custom logic at various lifecycle events.
  */
-export interface WebSocketManagerHooks<TState> {
+export interface BackendWebSocketManagerHooks<TState> {
     /**
      * Called whenever a new client connects.
      */
@@ -43,7 +43,7 @@ export interface WebSocketManagerHooks<TState> {
  * @template TState The shape of your application's state
  * @template TMessage The union of all message types that may be handled
  */
-export interface WebSocketManagerConfig<
+export interface BackendWebSocketManagerConfig<
     TState,
     TMessage extends BaseMessage
 > {
@@ -71,7 +71,7 @@ export interface WebSocketManagerConfig<
     /**
      * Optional hooks for lifecycle events.
      */
-    hooks?: WebSocketManagerHooks<TState>;
+    hooks?: BackendWebSocketManagerHooks<TState>;
 
     /**
      * Milliseconds to wait before sending a ping to each client.
@@ -98,12 +98,12 @@ export interface WebSocketManagerConfig<
  * @template TState - The shape of your application's state
  * @template TMessage - The union of all message types that may be handled
  */
-export class WebSocketManager<
+export class BackendWebSocketManager<
     TState,
     TMessage extends BaseMessage
 > {
     private connections: Set<ServerWebSocket<any>>;
-    private config: WebSocketManagerConfig<TState, TMessage>;
+    private config: BackendWebSocketManagerConfig<TState, TMessage>;
 
     /**
      * Middleware array. Each middleware processes a TMessage
@@ -119,7 +119,7 @@ export class WebSocketManager<
 
     private heartbeatTimer: NodeJS.Timer | undefined;
 
-    constructor(config: WebSocketManagerConfig<TState, TMessage>) {
+    constructor(config: BackendWebSocketManagerConfig<TState, TMessage>) {
         this.config = config;
         this.connections = new Set();
         this.lastPongTimes = new Map();

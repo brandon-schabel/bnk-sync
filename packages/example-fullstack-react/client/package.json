@@ -20,6 +20,6 @@
     "globals": "^15.14.0",
     "typescript": "~5.6.2",
     "vite": "^6.0.5",
-    "@bnk/websocket-manager-react": "workspace:*"
+    "@bnk/react-websocket-manager": "workspace:*"
   }
 }

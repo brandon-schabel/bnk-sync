@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import {
     WebSocketClientProvider,
     type ClientWebSocketManagerConfig,
-} from "@bnk/websocket-manager-react";
+} from "@bnk/react-websocket-manager";
 import {
     IncomingServerMessage,
     OutgoingClientMessage,

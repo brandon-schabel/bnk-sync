@@ -1,6 +1,6 @@
-# @bnk/websocket-manager
+# @bnk/backend-websocket-manager
 
-**@bnk/websocket-manager** is a modular, extensible, and strongly-typed WebSocket manager for Bun-based servers, designed to handle a variety of real-time use cases with minimal overhead. This package leverages Bun’s native `ServerWebSocket`, offering a customizable, pluggable architecture to manage application state and broadcast changes to connected clients.
+**@bnk/backend-websocket-manager** is a modular, extensible, and strongly-typed WebSocket manager for Bun-based servers, designed to handle a variety of real-time use cases with minimal overhead. This package leverages Bun’s native `ServerWebSocket`, offering a customizable, pluggable architecture to manage application state and broadcast changes to connected clients.
 
 ## Key Features
 
@@ -15,16 +15,16 @@
 
 ```bash
 # Using Bun
-bun add @bnk/websocket-manager
+bun add @bnk/backend-websocket-manager
 
 # Or, if you are mixing with npm/yarn, you can also do:
-npm install @bnk/websocket-manager
-# yarn add @bnk/websocket-manager
+npm install @bnk/backend-websocket-manager
+# yarn add @bnk/backend-websocket-manager
 ```
 
 ## Basic Usage
 
-Below is a minimal example of how to use **@bnk/websocket-manager**. This example sets up an in-memory state and a single message handler for demonstration.
+Below is a minimal example of how to use **@bnk/backend-websocket-manager**. This example sets up an in-memory state and a single message handler for demonstration.
 
 ### 1. Create Your State and Handlers
 
@@ -35,7 +35,7 @@ export interface MyAppState {
 }
 
 // my-message-types.ts
-import { BaseMessage } from "@bnk/websocket-manager";
+import { BaseMessage } from "@bnk/backend-websocket-manager";
 
 export interface IncrementMessage extends BaseMessage {
   type: "increment";
@@ -48,7 +48,7 @@ export type MyAppMessage = IncrementMessage;
 
 ```ts
 // my-message-handlers.ts
-import { MessageHandler } from "@bnk/websocket-manager";
+import { MessageHandler } from "@bnk/backend-websocket-manager";
 import { MyAppState, MyAppMessage } from "./my-message-types";
 
 // A simple handler to increment a counter in the state
@@ -67,8 +67,8 @@ export const myHandlers = [incrementHandler];
 ### 2. Set Up Your WebSocket Manager
 
 ```ts
-// websocket-manager-setup.ts
-import { WebSocketManager } from "@bnk/websocket-manager";
+// backend-websocket-manager-setup.ts
+import { WebSocketManager } from "@bnk/backend-websocket-manager";
 import { MyAppState, MyAppMessage } from "./my-message-types";
 import { myHandlers } from "./my-message-handlers";
 
@@ -99,7 +99,7 @@ export const myWebSocketManager = new WebSocketManager<MyAppState, MyAppMessage>
 ```ts
 // bun-server.ts
 import { serve } from "bun";
-import { myWebSocketManager } from "./websocket-manager-setup";
+import { myWebSocketManager } from "./backend-websocket-manager-setup";
 
 serve({
   port: 3000,
@@ -173,17 +173,17 @@ Set `debug: true` in the manager config to see detailed logs of connections, clo
 
 ### Heartbeats & Connection Stability
 
-If you’re building a high-availability or production-grade system, you may also implement a heartbeat or ping/pong mechanism. This can help detect stale connections. See the [test suite](./src/generic-websocket-manager.test.ts) for an example of using a heartbeat interval.
+If you’re building a high-availability or production-grade system, you may also implement a heartbeat or ping/pong mechanism. This can help detect stale connections. See the [test suite](./src/generic-backend-websocket-manager.test.ts) for an example of using a heartbeat interval.
 
 ## Testing
 
-**@bnk/websocket-manager** is built for straightforward testing with Bun. Key points:
+**@bnk/backend-websocket-manager** is built for straightforward testing with Bun. Key points:
 
 - **Mocking**: You can mock out `getState` and `setState` for unit tests.
 - **Handlers**: Each message handler is testable as a standalone function since it just needs `getState`, `setState`, and a mocked WebSocket.
 - **Integration**: Combine all handlers, start a test Bun server, and run integration tests to ensure messages flow as expected.
 
-A sample test file is included in `src/generic-websocket-manager.test.ts`, showcasing how to verify:
+A sample test file is included in `src/generic-backend-websocket-manager.test.ts`, showcasing how to verify:
 
 1. Incoming messages are parsed and handled.
 2. State is updated correctly.
@@ -197,7 +197,7 @@ bun test src/
 
 ## Contributing
 
-Feel free to open issues or pull requests to improve **@bnk/websocket-manager**. Whether it’s a feature request, bug fix, or documentation enhancement, all contributions are welcome.
+Feel free to open issues or pull requests to improve **@bnk/backend-websocket-manager**. Whether it’s a feature request, bug fix, or documentation enhancement, all contributions are welcome.
 
 ## License
 
@@ -205,4 +205,4 @@ This project is licensed under the [MIT License](./LICENSE).
 
 ---
 
-**@bnk/websocket-manager** aims to give you a solid foundation for real-time WebSocket applications using Bun, with minimal friction and maximum flexibility. If you find this library helpful, consider sharing feedback and improvements!
+**@bnk/backend-websocket-manager** aims to give you a solid foundation for real-time WebSocket applications using Bun, with minimal friction and maximum flexibility. If you find this library helpful, consider sharing feedback and improvements!

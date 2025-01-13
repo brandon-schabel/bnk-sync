@@ -1,7 +1,5 @@
 import type { BaseServerMessage, BaseClientMessage } from "./client-websocket-types";
 
-export type { BaseServerMessage, BaseClientMessage };
-
 /**
  * Configuration for our client-side manager.
  * You can give default types for TIncoming and TOutgoing if you like.

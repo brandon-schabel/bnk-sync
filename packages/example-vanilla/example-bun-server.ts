@@ -1,7 +1,7 @@
 // server.ts
 import { serve } from "bun";
 import { join } from "path";
-import { WebSocketManager } from "@bnk/websocket-manager";
+import { WebSocketManager } from "@bnk/backend-websocket-manager";
 import { counterHandlers, type MyAppState, type CounterMessage } from "./counter-handlers";
 import { initializeDatabase, loadInitialStateFromDb, saveStateToDb } from "./database";
 

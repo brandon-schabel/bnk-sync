@@ -1,8 +1,8 @@
 // packages/websocket-manager/test/generic-websocket-manager.test.ts
 
 import { describe, it, expect, beforeEach, afterEach, mock } from "bun:test";
-import { WebSocketManager, type WebSocketManagerConfig } from "../src";
-import { type BaseMessage, type MessageHandler } from "../src/websocket-types";
+import { BackendWebSocketManager, type BackendWebSocketManagerConfig } from ".";
+import { type BaseMessage, type MessageHandler } from "./backend-websocket-types";
 
 type TestState = {
     value: number;
@@ -16,7 +16,7 @@ interface IncrementTestMessage extends BaseMessage {
 type TestMessage = IncrementTestMessage;
 
 describe("WebSocketManager Tests", () => {
-    let manager: WebSocketManager<TestState, TestMessage>;
+    let manager: BackendWebSocketManager<TestState, TestMessage>;
     let mockWs: any;
 
     beforeEach(() => {
@@ -35,14 +35,14 @@ describe("WebSocketManager Tests", () => {
             },
         };
 
-        const config: WebSocketManagerConfig<TestState, TestMessage> = {
+        const config: BackendWebSocketManagerConfig<TestState, TestMessage> = {
             getState: async () => ({ value: 0 }),
             setState: async (newState) => { },
             messageHandlers: [incrementHandler],
             debug: false,
         };
 
-        manager = new WebSocketManager(config);
+        manager = new BackendWebSocketManager(config);
     });
 
     afterEach(() => {
@@ -100,7 +100,7 @@ describe("WebSocketManager Tests", () => {
 
     it("should handle heartbeat pings if interval is set", async () => {
         manager.stopHeartbeat();
-        manager = new WebSocketManager({
+        manager = new BackendWebSocketManager({
             ...manager["config"],
             heartbeatIntervalMs: 10,
             pingTimeoutMs: 50,
@@ -110,6 +110,7 @@ describe("WebSocketManager Tests", () => {
         await new Promise((resolve) => setTimeout(resolve, 30));
 
         // Filter mock calls for ping messages
+        // @ts-ignore
         const pingCalls = mockWs.send.mock.calls.filter(call => {
             try {
                 const parsed = JSON.parse(call[0]);
@@ -123,7 +124,7 @@ describe("WebSocketManager Tests", () => {
 
     it("should handle a pong message", async () => {
         manager.stopHeartbeat();
-        manager = new WebSocketManager({
+        manager = new BackendWebSocketManager({
             ...manager["config"],
             heartbeatIntervalMs: 10,
             pingTimeoutMs: 50,

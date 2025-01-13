@@ -1,8 +1,8 @@
 // File: packages/websocket-react-example/client/src/App.tsx
 import { useContext, useState } from "react";
-import { useWebSocketClient } from "@bnk/websocket-manager-react";
+import { useWebSocketClient } from "@bnk/react-websocket-manager";
 import { MessageLogContext } from "./chat-web-socket-provider";
-import { } from "@bnk/websocket-manager-react";
+import { } from "@bnk/react-websocket-manager";
 
 function App() {
   // Grab our WebSocket context to send messages or manually disconnect if needed
