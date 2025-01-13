@@ -1,6 +1,6 @@
-# **@bnk/react-websocket-manager**
+# **BNK Websocket Manger**
 
-A modern, type-safe, and performant React WebSocket interface built entirely on Bun. This library streamlines WebSocket integration in React applications, providing **pluggable** and **composable** APIs with zero external dependencies besides React. Leverage the power of Bun’s native WebSocket performance while enjoying a fully typed, developer-friendly experience.
+A modern, type-safe, and performant React WebSocket interface built entirely on Bun. This library streamlines WebSocket integration in React applications, providing **pluggable** and **composable** APIs with zero external dependencies for the base libraries. Leverage the power of Bun’s native WebSocket performance while enjoying a fully typed, developer-friendly experience.
 
 ---
 
