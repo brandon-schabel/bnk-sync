@@ -25,8 +25,9 @@ A modern, type-safe, and performant React WebSocket interface built entirely on 
 ---
 
 ## **Introduction**
-
-`@bnk/react-websocket-manager` is a React-specific wrapper around the core client WebSocket logic from [`@bnk/client-websocket-manager`](https://www.npmjs.com/package/@bnk/client-websocket-manager). Its primary goal is to:
+`@bnk/backend-websocket-manager` - this is the required backend package
+`@bnk/client-websocket-manager` - this is the required frontend client 
+`@bnk/react-websocket-manager` is an optional React-specific wrapper around the core client WebSocket logic from [`@bnk/client-websocket-manager`](https://www.npmjs.com/package/@bnk/client-websocket-manager). Its primary goal is to:
 
 - Provide a **modern**, **type-safe** interface for WebSockets in React applications.  
 - Deliver **high performance** by leveraging **Bun**’s native WebSocket.  
@@ -34,13 +35,25 @@ A modern, type-safe, and performant React WebSocket interface built entirely on 
 - Offer **minimal** external dependencies (none besides React).  
 - Ensure an ergonomic developer experience, with advanced TypeScript usage (generics, mapped types, intersection types, etc.).
 
-This library pairs seamlessly with [`@bnk/backend-websocket-manager`](https://www.npmjs.com/package/@bnk/backend-websocket-manager) on the backend, letting you build a complete fullstack WebSocket solution in a type-safe manner.
-
 ---
 
-## **Installation**
+## **Server Side Installation**
 
 Using Bun:
+
+```bash
+bun add @bnk/backend-websocket-manager
+```
+
+## **Client side installation**
+male sure you are ins the clinet side of your app
+
+```bash
+bun add @bnk/client-websocket-manager
+```
+
+Optionally if youre using React, you cna use the react version of the library
+which provides a hook that wraps the vlient side library
 
 ```bash
 bun add @bnk/react-websocket-manager
