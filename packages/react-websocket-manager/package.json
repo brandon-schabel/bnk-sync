@@ -7,7 +7,7 @@
   "files": [
     "dist"
   ],
-  "version": "1.0.4",
+  "version": "1.0.5",
   "scripts": {
     "test": "bun test src/",
     "test:watch": "bun test --watch src/",
@@ -26,11 +26,11 @@
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "vite-plugin-dts": "^4.5.0",
-    "@bnk/client-websocket-manager": "^1.0.0"
+    "@bnk/client-websocket-manager": "^1.0.1"
   },
   "peerDependencies": {
     "react": ">=19.0.0",
-    "react-dom": ">=19.0.0", 
+    "react-dom": ">=19.0.0",
     "@bnk/client-websocket-manager": ">=1.0.0"
   }
 }

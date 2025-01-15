@@ -13,25 +13,28 @@ export interface UseClientWebSocketConfig<
     TOutgoing extends BaseClientMessage = BaseClientMessage
 > {
     manager?: ClientWebSocketManager<TIncoming, TOutgoing>;
-    config?: Partial<ClientWebSocketManagerConfig<TIncoming, TOutgoing>>
+    config?: Partial<ClientWebSocketManagerConfig<TIncoming, TOutgoing>>;
     // TODO: Add these on the manager 
     // onManagerInstantiated?: (manager: ClientWebSocketManager<TIncoming, TOutgoing>) => void;
     // onMessageReceived?: (message: TIncoming) => void;
     // onMessageSent?: (message: TOutgoing) => void;
     // onDisconnect?: () => void;
+
 }
 
 export function useClientWebSocket<
     TIncoming extends BaseServerMessage = BaseServerMessage,
     TOutgoing extends BaseClientMessage = BaseClientMessage
->({ config, manager: managerProp }: UseClientWebSocketConfig<TIncoming, TOutgoing>) {
+>({
+    config,
+    manager: managerProp,
+}: UseClientWebSocketConfig<TIncoming, TOutgoing>) {
     const [isOpen, setIsOpen] = useState(false);
     const managerRef = useRef<ClientWebSocketManager<TIncoming, TOutgoing> | null>(null);
 
     // Initialize WebSocket manager only if it doesn't already exist
     if (!managerRef.current) {
-
-        if (config && !config.url) {
+        if (config && !config.url && !managerProp) {
             throw new Error(
                 "useClientWebSocket error: 'url' is required if no existing manager is provided."
             );
@@ -41,8 +44,12 @@ export function useClientWebSocket<
             managerRef.current = managerProp;
         } else if (config) {
             managerRef.current = new ClientWebSocketManager<TIncoming, TOutgoing>({
-                url: config.url ?? 'no-url',
+                url: config.url ?? "",
                 debug: config.debug,
+                autoReconnect: config.autoReconnect,
+                reconnectIntervalMs: config.reconnectIntervalMs,
+                maxReconnectAttempts: config.maxReconnectAttempts,
+                onReconnect: config.onReconnect,
                 messageHandlers: config.messageHandlers,
                 onOpen: () => {
                     setIsOpen(true);
@@ -60,10 +67,9 @@ export function useClientWebSocket<
     const manager = managerRef.current;
 
     useEffect(() => {
+        // On unmount, optionally disconnect
         return () => {
-            if (!manager) {
-                managerRef.current?.disconnect();
-            }
+            managerRef.current?.disconnect();
         };
     }, [manager, managerProp]);
 
@@ -74,8 +80,8 @@ export function useClientWebSocket<
         [manager]
     );
 
-    const disconnect = useCallback(() => {
-        manager?.disconnect();
+    const disconnect = useCallback((stopReconnect = false) => {
+        manager?.disconnect(stopReconnect);
     }, [manager]);
 
     return {

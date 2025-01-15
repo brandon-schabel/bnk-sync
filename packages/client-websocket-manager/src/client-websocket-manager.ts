@@ -42,6 +42,27 @@ export interface ClientWebSocketManagerConfig<
             message: Extract<TIncoming, { type: K }>
         ) => void;
     };
+
+    /**
+     * If true, automatically attempt to reconnect on close.
+     */
+    autoReconnect?: boolean;
+
+    /**
+     * Delay (in ms) between reconnect attempts.
+     */
+    reconnectIntervalMs?: number;
+
+    /**
+     * Max number of reconnect attempts before giving up.
+     * Defaults to infinite if not specified.
+     */
+    maxReconnectAttempts?: number;
+
+    /**
+     * Called each time a reconnect attempt starts.
+     */
+    onReconnect?: (attemptNumber: number) => void;
 }
 
 /**
@@ -53,6 +74,8 @@ export class ClientWebSocketManager<
 > {
     private config: ClientWebSocketManagerConfig<TIncoming, TOutgoing>;
     private socket: WebSocket | null = null;
+    private reconnectAttempts = 0;
+    private reconnectTimeoutId: ReturnType<typeof setTimeout> | null = null;
 
     constructor(config: ClientWebSocketManagerConfig<TIncoming, TOutgoing>) {
         this.config = config;
@@ -70,7 +93,6 @@ export class ClientWebSocketManager<
         }
 
         this.socket = new WebSocket(url);
-
         this.socket.addEventListener("open", this.handleOpen);
         this.socket.addEventListener("close", this.handleClose);
         this.socket.addEventListener("error", this.handleError);
@@ -78,9 +100,15 @@ export class ClientWebSocketManager<
     }
 
     /**
-     * Close the WebSocket connection gracefully
+     * Close the WebSocket connection gracefully,
+     * and optionally prevent further reconnect attempts.
      */
-    public disconnect() {
+    public disconnect(stopReconnectAttempts = false) {
+        if (stopReconnectAttempts) {
+            this.clearReconnectTimer();
+            this.reconnectAttempts = 0;
+        }
+
         if (this.socket && this.socket.readyState === WebSocket.OPEN) {
             if (this.config.debug) {
                 console.log("[ClientWebSocketManager] Closing connection");
@@ -115,6 +143,10 @@ export class ClientWebSocketManager<
         if (this.config.debug) {
             console.log("[ClientWebSocketManager] Connection opened");
         }
+        // Reset our reconnect attempts since we've successfully connected.
+        this.reconnectAttempts = 0;
+        this.clearReconnectTimer();
+
         this.config.onOpen?.();
     };
 
@@ -126,7 +158,29 @@ export class ClientWebSocketManager<
             console.log("[ClientWebSocketManager] Connection closed:", event.reason);
         }
         this.config.onClose?.(event);
-        // Optional: reconnection logic here
+
+        // Trigger auto reconnect if enabled
+        if (this.config.autoReconnect) {
+            const maxAttempts = this.config.maxReconnectAttempts ?? Infinity;
+            if (this.reconnectAttempts < maxAttempts) {
+                this.reconnectAttempts += 1;
+                // Let consumer know a reconnect attempt is about to happen
+                this.config.onReconnect?.(this.reconnectAttempts);
+
+                this.reconnectTimeoutId = setTimeout(() => {
+                    if (this.config.debug) {
+                        console.log(
+                            `[ClientWebSocketManager] Attempting reconnect (#${this.reconnectAttempts}) ...`
+                        );
+                    }
+                    this.connect();
+                }, this.config.reconnectIntervalMs ?? 2000);
+            } else if (this.config.debug) {
+                console.warn(
+                    `[ClientWebSocketManager] Max reconnect attempts reached (${maxAttempts}).`
+                );
+            }
+        }
     };
 
     /**
@@ -159,4 +213,14 @@ export class ClientWebSocketManager<
             console.warn("[ClientWebSocketManager] No handler for message type:", incoming.type);
         }
     };
+
+    /**
+     * Clear any pending reconnect timers
+     */
+    private clearReconnectTimer() {
+        if (this.reconnectTimeoutId) {
+            clearTimeout(this.reconnectTimeoutId);
+            this.reconnectTimeoutId = null;
+        }
+    }
 }
