@@ -3,7 +3,7 @@
   "module": "src/index.ts",
   "main": "src/index.ts",
   "type": "module",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "scripts": {
     "test": "bun test src/",
     "test:watch": "bun test --watch src/",
@@ -13,5 +13,9 @@
   "devDependencies": {
     "bun-types": "latest",
     "typescript": "^5.7.2"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/brandon-schabel/bnk-websocket.git"
   }
 }

@@ -14,5 +14,9 @@
   },
   "dependencies": {
     "@bnk/router": "1.0.5"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/brandon-schabel/bnk-websocket.git"
   }
 }
