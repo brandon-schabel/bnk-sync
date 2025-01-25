@@ -1,6 +1,12 @@
-# **BNK Websocket Manger**
+# **BNK WebSocket**
 
-A modern, type-safe, and performant React WebSocket interface built entirely on Bun. This library streamlines WebSocket integration in React applications, providing **pluggable** and **composable** APIs with zero external dependencies for the base libraries. Leverage the power of Bun’s native WebSocket performance while enjoying a fully typed, developer-friendly experience.
+A **pluggable**, **type-safe**, and **performance-focused** suite of TypeScript libraries built on **Bun** for managing WebSocket connections. BNK WebSocket is split into three main packages, each addressing a different part of a real-time stack:
+
+- [`@bnk/backend-websocket-manager`](#bnkbackend-websocket-manager) – Server-side WebSocket manager for Bun.  
+- [`@bnk/client-websocket-manager`](#bnkclient-websocket-manager) – Client-side WebSocket manager for browsers (or other WebSocket environments).  
+- [`@bnk/react-websocket-manager`](#bnkreact-websocket-manager) – React-specific hooks and components for WebSocket integration.
+
+All packages prioritize **type safety**, **minimal dependencies**, and a **pluggable architecture** for easy customization.
 
 ---
 
@@ -8,16 +14,19 @@ A modern, type-safe, and performant React WebSocket interface built entirely on 
 
 1. [Introduction](#introduction)  
 2. [Installation](#installation)  
-3. [Usage Examples](#usage-examples)  
-   - [Basic React Usage](#basic-react-usage)  
-   - [Using the Provided Hook](#using-the-provided-hook)  
-   - [Fullstack Integration With @bnk/backend-websocket-manager](#fullstack-integration-with-bnkwebsocket-manager)  
-4. [API Documentation](#api-documentation)  
-   - [Types](#types)  
-   - [ClientWebSocketManager](#clientwebsocketmanager)  
-   - [useClientWebSocket](#useclientwebsocket)  
-5. [Performance Notes](#performance-notes)  
-6. [Configuration & Customization](#configuration--customization)  
+3. [Quick Start](#quick-start)  
+   - [Server Example](#server-example)  
+   - [Client Example (Vanilla)](#client-example-vanilla)  
+   - [React Example](#react-example)  
+4. [Type Validation](#type-validation)  
+   - [Manual Validation](#manual-validation)  
+   - [Using Zod](#using-zod)  
+5. [Recommended Approach](#recommended-approach)  
+6. [Advanced Usage](#advanced-usage)  
+   - [Persistence (SQLite)](#persistence-sqlite)  
+   - [Persistence (File)](#persistence-file)  
+   - [Broadcasting State](#broadcasting-state)  
+   - [Hooks & Middleware](#hooks--middleware)  
 7. [Testing](#testing)  
 8. [Contributing](#contributing)  
 9. [License](#license)
@@ -25,202 +34,84 @@ A modern, type-safe, and performant React WebSocket interface built entirely on 
 ---
 
 ## **Introduction**
-`@bnk/backend-websocket-manager` - Required backend package
 
-`@bnk/client-websocket-manager` - Required frontend client package
+**BNK WebSocket** aims to simplify building real-time applications in **Bun** by offering:
 
-`@bnk/react-websocket-manager` is an optional React-specific wrapper around the core client WebSocket logic from [`@bnk/client-websocket-manager`](https://www.npmjs.com/package/@bnk/client-websocket-manager). Its primary goal is to:
+- **High Performance**: Built on Bun’s native WebSocket and HTTP server APIs.  
+- **Type Safety**: Written in TypeScript, with generics and advanced typing to ensure confidence in your code.  
+- **Modular & Composable**: Each package can be used independently or combined for a fullstack approach.  
+- **Minimal Dependencies**: Minimizes or eliminates external dependencies for speed and smaller bundles.  
+- **Pluggability**: Support for custom message handlers, validation, hooks, and optional persistence (SQLite or file-based).  
 
-- Provide a **modern**, **type-safe** interface for WebSockets in React applications.  
-- Deliver **high performance** by leveraging **Bun**’s native WebSocket.  
-- Encourage **plug-and-play modularity** through composable hooks and providers.  
-- Offer **minimal** external dependencies (none besides React).  
-- Ensure an ergonomic developer experience, with advanced TypeScript usage (generics, mapped types, intersection types, etc.).
+Whether you’re building a small chat app or a robust real-time platform, BNK WebSocket provides sensible defaults and straightforward extensibility.
 
 ---
 
-## **Server Side Installation**
+## **Installation**
 
-Using Bun:
+Using **Bun** (recommended):
 
 ```bash
 bun add @bnk/backend-websocket-manager
-```
-
-## **Client side installation**
-male sure you are ins the clinet side of your app
-
-```bash
 bun add @bnk/client-websocket-manager
-```
-
-Optionally if youre using React, you cna use the react version of the library
-which provides a hook that wraps the vlient side library
-
-```bash
 bun add @bnk/react-websocket-manager
 ```
 
 ---
 
-## **Usage Examples**
+## **Quick Start**
 
-### **Basic React Usage**
+Below are minimal examples for each package. For more detailed usage, see the [Advanced Usage](#advanced-usage) section.
 
-Below is a minimal setup in a React application. This example assumes you have a WebSocket server running at `ws://localhost:3007/ws` built on Bun.
+### **Server Example**
 
-```tsx
-import React from "react";
-import { useClientWebSocket } from "@bnk/react-websocket-manager";
-
-function App() {
-  const { isOpen, sendMessage } = useClientWebSocket({
-    config: {
-      url: "ws://localhost:3007/ws",
-      debug: true,
-      onOpen: () => console.log("WebSocket opened!"),
-      onClose: () => console.log("WebSocket closed."),
-      messageHandlers: {
-        // Handle incoming server messages here
-        initial_state: (msg) => {
-          console.log("Received initial state:", msg.data);
-        },
-        state_update: (msg) => {
-          console.log("Updated state from server:", msg.data);
-        },
-      },
-    },
-  });
-
-  const handleSend = () => {
-    if (!isOpen) {
-      console.warn("Socket is not open, cannot send message.");
-      return;
-    }
-    sendMessage({
-      type: "chat",
-      payload: {
-        text: "Hello from the client!",
-        sender: "ReactUser",
-      },
-    });
-  };
-
-  return (
-    <div>
-      <h1>React WebSocket Manager Example</h1>
-      <p>Connection status: {isOpen ? "Open" : "Closed"}</p>
-      <button onClick={handleSend}>Send Chat Message</button>
-    </div>
-  );
-}
-
-export default App;
-```
-
-### **Using the Provided Hook**
-
-The main hook is `useClientWebSocket`. It sets up a WebSocket manager internally and returns:
-
-- `isOpen` – A boolean indicating if the WebSocket is currently open.  
-- `sendMessage` – A function to send typed messages to the server.  
-- `disconnect` – A function to gracefully close the WebSocket.  
-- `manager` – The underlying `ClientWebSocketManager` instance, if needed for advanced usage.
-
-**Example With an Existing Manager**  
-If you already have a `ClientWebSocketManager` instance (for instance, if you create it elsewhere and want to pass it down), you can just inject it:
-
-```tsx
-import React, { useState } from "react";
-import {
-  ClientWebSocketManager,
-  type BaseServerMessage,
-  type BaseClientMessage,
-} from "@bnk/client-websocket-manager";
-import { useClientWebSocket } from "@bnk/react-websocket-manager";
-
-const existingManager = new ClientWebSocketManager<BaseServerMessage, BaseClientMessage>({
-  url: "ws://localhost:3007/ws",
-  debug: true,
-  onOpen: () => console.log("Existing Manager Open"),
-});
-
-function MyComponent() {
-  const { isOpen, sendMessage } = useClientWebSocket({
-    manager: existingManager,
-  });
-
-  const handleSend = () => {
-    if (isOpen) {
-      sendMessage({ type: "ping" });
-    }
-  };
-
-  return (
-    <div>
-      <h2>Using an existing manager</h2>
-      <p>Connection: {isOpen ? "Open" : "Closed"}</p>
-      <button onClick={handleSend}>Send Ping</button>
-    </div>
-  );
-}
-
-export default MyComponent;
-```
-
-### **Fullstack Integration With `@bnk/backend-websocket-manager`**
-
-Below is an outline demonstrating how you might integrate the React library on the frontend with the Bun-based WebSocket manager on the backend.
-
-#### Backend (Bun + `@bnk/backend-websocket-manager`)
+A simple Bun server using **`@bnk/backend-websocket-manager`**:
 
 ```ts
-// server.ts
 import { serve } from "bun";
 import {
   BackendWebSocketManager,
+  type MessageHandler,
   type BaseMessage,
-  type MessageHandler
 } from "@bnk/backend-websocket-manager";
 
-// Example state and message definitions
-interface MyState {
-  messages: string[];
+interface MyAppState {
+  counter: number;
 }
 
-interface ChatMessage extends BaseMessage {
-  type: "chat";
-  payload: { sender: string; text: string };
+interface IncrementMessage extends BaseMessage {
+  type: "increment";
+  amount: number;
 }
 
-const chatHandler: MessageHandler<MyState, ChatMessage> = {
-  type: "chat",
+const incrementHandler: MessageHandler<MyAppState, IncrementMessage> = {
+  type: "increment",
   async handle(ws, message, getState, setState) {
     const state = await getState();
-    state.messages.push(`${message.payload.sender}: ${message.payload.text}`);
+    state.counter += message.amount;
     await setState(state);
   },
 };
 
-let currentState: MyState = { messages: [] };
+let currentState: MyAppState = { counter: 0 };
 
-async function getState(): Promise<MyState> {
+async function getState(): Promise<MyAppState> {
+  // Return a structured clone for immutability or read from DB
   return structuredClone(currentState);
 }
 
-async function setState(newState: MyState): Promise<void> {
+async function setState(newState: MyAppState): Promise<void> {
   currentState = structuredClone(newState);
 }
 
-const manager = new BackendWebSocketManager<MyState, ChatMessage>({
-  getState,
-  setState,
-  messageHandlers: [chatHandler],
+const manager = new BackendWebSocketManager<MyAppState, IncrementMessage>({
+  initialState: await getState(),
+  messageHandlers: [incrementHandler],
   debug: true,
 });
 
 serve({
-  port: 3007,
+  port: 3000,
   fetch(req, server) {
     const url = new URL(req.url);
     if (url.pathname === "/ws") {
@@ -237,187 +128,286 @@ serve({
     },
     async message(ws, msg) {
       await manager.handleMessage(ws, msg.toString());
-      // Optionally broadcast new state to all clients
+      // Broadcast updated state to all clients
       await manager.broadcastState();
     },
   },
 });
+
+console.log("Server running at http://localhost:3000");
 ```
 
-#### Frontend (React + `@bnk/react-websocket-manager`)
+### **Client Example (Vanilla)**
+
+A minimal WebSocket client using **`@bnk/client-websocket-manager`** in the browser (or any JS runtime with WebSocket):
+
+```ts
+import {
+  ClientWebSocketManager,
+  type BaseServerMessage,
+  type BaseClientMessage,
+} from "@bnk/client-websocket-manager";
+
+interface IncomingServerMessage extends BaseServerMessage {
+  type: "state_update";
+  data: { counter: number };
+}
+
+interface OutgoingClientMessage extends BaseClientMessage {
+  type: "increment";
+  amount: number;
+}
+
+const clientManager = new ClientWebSocketManager<
+  IncomingServerMessage,
+  OutgoingClientMessage
+>({
+  url: "ws://localhost:3000/ws",
+  debug: true,
+  messageHandlers: {
+    state_update: (msg) => {
+      console.log("New counter value:", msg.data.counter);
+    },
+  },
+});
+
+// Send a message to increment the counter by 5
+clientManager.sendMessage({ type: "increment", amount: 5 });
+```
+
+### **React Example**
+
+A simple React component using **`@bnk/react-websocket-manager`**:
 
 ```tsx
-// App.tsx
 import React from "react";
 import { useClientWebSocket } from "@bnk/react-websocket-manager";
+import type { BaseClientMessage, BaseServerMessage } from "@bnk/client-websocket-manager";
 
-function App() {
-  const { isOpen, sendMessage } = useClientWebSocket({
+interface OutgoingMessage extends BaseClientMessage {
+  type: "increment";
+  amount: number;
+}
+
+interface IncomingMessage extends BaseServerMessage {
+  type: "state_update";
+  data: { counter: number };
+}
+
+export function Counter() {
+  const { isOpen, sendMessage } = useClientWebSocket<IncomingMessage, OutgoingMessage>({
     config: {
-      url: "ws://localhost:3007/ws",
+      url: "ws://localhost:3000/ws",
       debug: true,
       messageHandlers: {
-        initial_state: (msg) => {
-          console.log("Initial data:", msg.data);
-        },
         state_update: (msg) => {
-          console.log("Updated data:", msg.data);
+          console.log("Updated counter:", msg.data.counter);
         },
       },
     },
   });
 
-  const handleChatSend = () => {
+  const handleIncrement = () => {
     if (!isOpen) {
-      console.warn("Cannot send chat, socket is not open.");
+      console.warn("WebSocket is not open!");
       return;
     }
-    sendMessage({
-      type: "chat",
-      payload: {
-        text: "Hello from React!",
-        sender: "ReactUser",
-      },
-    });
+    sendMessage({ type: "increment", amount: 1 });
   };
 
   return (
     <div>
-      <h1>Fullstack Bun WebSocket Example</h1>
-      <p>Status: {isOpen ? "Connected" : "Disconnected"}</p>
-      <button onClick={handleChatSend}>Send Chat</button>
+      <p>WebSocket status: {isOpen ? "OPEN" : "CLOSED"}</p>
+      <button onClick={handleIncrement}>Increment</button>
     </div>
   );
 }
-
-export default App;
 ```
 
 ---
 
-## **API Documentation**
+## **Type Validation**
 
-### **Types**
+All three packages let you define a **validation** step for incoming (and optionally outgoing) messages. This ensures the server or client only processes messages that match your expected schema.
+
+### **Manual Validation**
+
+You can manually inspect the data in a custom function:
 
 ```ts
-export interface BaseClientMessage {
-  type: string;
-  // Optionally extend with more fields...
+function validateIncrement(raw: unknown): IncrementMessage {
+  const parsed = JSON.parse(String(raw));
+  if (typeof parsed === "object" && parsed !== null) {
+    if ((parsed as any).type === "increment" && typeof (parsed as any).amount === "number") {
+      return parsed as IncrementMessage;
+    }
+  }
+  throw new Error("Invalid message format");
 }
 
-export interface BaseServerMessage {
-  type: string;
-  data?: unknown;
-  // Optionally extend with more fields...
+// Then pass `validateMessage` in the manager config:
+const manager = new BackendWebSocketManager<MyAppState, IncrementMessage>({
+  initialState: { counter: 0 },
+  messageHandlers: [incrementHandler],
+  validateMessage: (raw) => validateIncrement(raw),
+});
+```
+
+### **Using Zod**
+
+A more robust approach uses [Zod](https://github.com/colinhacks/zod) for schema validation:
+
+```ts
+import { z } from "zod";
+
+const IncrementSchema = z.object({
+  type: z.literal("increment"),
+  amount: z.number(),
+});
+
+export type IncrementMessage = z.infer<typeof IncrementSchema>;
+
+// Pass it in:
+const manager = new BackendWebSocketManager<MyAppState, IncrementMessage>({
+  initialState: { counter: 0 },
+  messageHandlers: [incrementHandler],
+  validateMessage: (raw) => {
+    return IncrementSchema.parse(JSON.parse(String(raw)));
+  },
+});
+```
+
+---
+
+## **Recommended Approach**
+
+1. **Define your application state** (e.g., chat logs, counters, etc.) in a shared TypeScript type or a Zod schema.  
+2. **Define your message types** similarly (possibly a union of multiple message variants).  
+3. **Use `validateMessage`** on the server for robust sanity checks.  
+4. Optionally, **validate outgoing messages** on the client by providing `validateOutgoingMessage` in the `ClientWebSocketManager` config.  
+5. For React, **wrap everything** in a provider or use the `useClientWebSocket` hook for streamlined subscription to WebSocket events.
+
+---
+
+## **Advanced Usage**
+
+### **Persistence (SQLite)**
+
+You can use built-in adapters to **persist your state** in SQLite. This ensures data survives server restarts:
+
+```ts
+import { BackendWebSocketManager, SQLiteWebSocketAdapter } from "@bnk/backend-websocket-manager";
+
+const sqliteAdapter = new SQLiteWebSocketAdapter<MyAppState>({
+  path: "my-websocket.sqlite",
+  tableName: "my_websocket_table",
+});
+
+const manager = new BackendWebSocketManager<MyAppState, IncrementMessage>({
+  initialState: { counter: 0 },
+  messageHandlers: [incrementHandler],
+  adapter: sqliteAdapter,
+  enableVersioning: true,  // increments an internal version on each update
+  syncIntervalMs: 60000,   // auto-sync to SQLite every 60s
+});
+```
+
+### **Persistence (File)**
+
+Alternatively, store state in a JSON file:
+
+```ts
+import { BackendWebSocketManager, FileWebSocketAdapter } from "@bnk/backend-websocket-manager";
+
+const fileAdapter = new FileWebSocketAdapter<MyAppState>({
+  filePath: "./websocket-state.json",
+  backupsDir: "./backups",  // optional
+});
+
+const manager = new BackendWebSocketManager<MyAppState, IncrementMessage>({
+  initialState: { counter: 0 },
+  messageHandlers: [incrementHandler],
+  adapter: fileAdapter,
+  enableVersioning: true,
+});
+```
+
+### **Broadcasting State**
+
+Use `manager.broadcastState()` to send the updated application state to **all connected clients**:
+
+```ts
+await manager.broadcastState();
+```
+
+By default, it sends a message of the shape:
+
+```json
+{
+  "type": "state_update",
+  "data": { ... }
 }
 ```
 
-### **`ClientWebSocketManager`**
+You can also send custom messages to specific clients by calling `ws.send()` inside your handlers.
 
-A generic class that manages a single WebSocket connection client-side. It handles:
+### **Hooks & Middleware**
 
-1. **Connection logic** (open, close, reconnect).  
-2. **Sending typed messages** with `sendMessage()`.  
-3. **Processing server messages** via a `messageHandlers` map.  
+**Hooks** let you run custom logic on events like `onConnect`, `onDisconnect`, `onStateChange`, or `onSync`.  
+**Middleware** can preprocess incoming messages before handling.  
 
-**Constructor**  
-
-```ts
-constructor(config: ClientWebSocketManagerConfig<TIncoming, TOutgoing>)
-```
-
-| Parameter | Description |
-| --- | --- |
-| `config.url` | The WebSocket URL. e.g., `ws://localhost:3007/ws` |
-| `config.debug?` | If `true`, enables verbose console logs. |
-| `config.onOpen?` | Called when the connection opens. |
-| `config.onClose?` | Called when the connection closes. |
-| `config.onError?` | Called when an error occurs. |
-| `config.messageHandlers?` | A mapping from `message.type` to a handler function. |
-
-**Example**  
+Example hooking into `onConnect`:
 
 ```ts
-const manager = new ClientWebSocketManager({
-  url: "ws://localhost:3007/ws",
-  debug: true,
-  messageHandlers: {
-    state_update: (msg) => {
-      console.log("Server updated state:", msg.data);
+const manager = new BackendWebSocketManager<MyAppState, MyMessage>({
+  messageHandlers,
+  hooks: {
+    onConnect: async (ws) => {
+      console.log("[Server] New client connected!", ws.data);
     },
   },
 });
 ```
 
-### **`useClientWebSocket`**
-
-A React hook that abstracts the `ClientWebSocketManager`. Returns a simple interface to send messages and track connection state in React.
-
-```ts
-function useClientWebSocket<TIncoming extends BaseServerMessage, TOutgoing extends BaseClientMessage>(
-  config: UseClientWebSocketConfig<TIncoming, TOutgoing>
-): {
-  manager: ClientWebSocketManager<TIncoming, TOutgoing> | null;
-  isOpen: boolean;
-  sendMessage: (msg: TOutgoing) => void;
-  disconnect: () => void;
-}
-```
-
-| Return Key        | Description                                                        |
-| ----------------- | ------------------------------------------------------------------ |
-| `manager`         | The internal `ClientWebSocketManager` instance.                    |
-| `isOpen`          | A `boolean` indicating if the WebSocket is connected (OPEN).       |
-| `sendMessage`     | A function to send typed messages to the server.                   |
-| `disconnect`      | A function to gracefully disconnect the WebSocket.                |
-
----
-
-## **Performance Notes**
-
-- Built to leverage **Bun’s** native WebSocket performance—no extra overhead.  
-- Uses modern TypeScript features (generics, mapped types) to enforce compile-time correctness while keeping runtime overhead minimal.  
-- No additional dependencies besides React, ensuring a smaller overall bundle.
-
----
-
-## **Configuration & Customization**
-
-- Pass a **`debug`** flag to enable logging.  
-- Provide your own `messageHandlers` to gracefully process server messages by **type**.  
-- If you have multiple WebSockets or special domain logic, you can **reuse** the `ClientWebSocketManager` instance and pass it to `useClientWebSocket`.
-
 ---
 
 ## **Testing**
 
-Testing with Bun is straightforward—this project is structured to make each part independently testable. Here’s how you could run tests in your own environment:
+All packages are designed for use with **Bun’s built-in test runner**:
 
 ```bash
 bun test
 ```
 
-If you need watch mode:
+A typical test might look like:
 
-```bash
-bun test --watch
+```ts
+import { describe, it, expect } from "bun:test";
+import { BackendWebSocketManager } from "@bnk/backend-websocket-manager";
+
+describe("BackendWebSocketManager", () => {
+  it("handles increment messages correctly", async () => {
+    // ...
+    expect( /* ... */ ).toBeTruthy();
+  });
+});
 ```
+
+For React, use your preferred React testing library (e.g. React Testing Library or Enzyme) alongside Bun’s runner.
 
 ---
 
 ## **Contributing**
 
-Contributions are welcome! Please:
+1. **Fork** and **clone** this repository.  
+2. Create a **feature branch** from `main`.  
+3. **Implement** and **test** your changes.  
+4. Submit a **pull request** with a clear description of your additions.  
 
-1. **Fork** the repository and create a new branch.  
-2. **Make changes** ensuring code style and formatting remain consistent.  
-3. **Add tests** covering your changes if applicable.  
-4. Create a **pull request** describing the changes and your rationale.
+All contributions—bug fixes, features, docs—are welcome.
 
 ---
 
 ## **License**
 
-`@bnk/react-websocket-manager` is open-source software licensed under the [MIT License](LICENSE).  
-
-Enjoy building real-time React apps powered by Bun! For questions, suggestions, or assistance, feel free to open an issue or submit a PR.
+**BNK WebSocket** is licensed under the [MIT License](./LICENSE). Feel free to use, modify, and distribute it in your own projects. If you find it useful or have suggestions, please open an issue or submit a pull request. Happy coding with **Bun**!
