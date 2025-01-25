@@ -1,96 +1,14 @@
 import type { ServerWebSocket } from "bun";
-import type { BaseMessage, MessageHandler } from "./backend-websocket-types";
+import type {
+  BaseMessage,
+  MessageHandler,
+  BackendWebSocketManagerConfig,
+  BackendWebSocketManagerHooks,
+  BackendWebSocketPersistenceAdapter,
+  VersionedWebSocketData,
+  WebSocketMiddleware,
+} from "./backend-websocket-types";
 
-/**
- * Hooks that can be provided to the WebSocketManager for executing
- * custom logic at various lifecycle events.
- */
-export interface BackendWebSocketManagerHooks<TState> {
-    /**
-     * Called whenever a new client connects.
-     */
-    onConnect?: (ws: ServerWebSocket<any>) => Promise<void>;
-
-    /**
-     * Called whenever a client disconnects.
-     */
-    onDisconnect?: (ws: ServerWebSocket<any>) => Promise<void>;
-
-    /**
-     * Called whenever the manager's state is updated.
-     */
-    onStateChange?: (oldState: TState, newState: TState) => Promise<void>;
-
-    /**
-     * Called when the server sends a "ping" message to a client.
-     */
-    onPing?: (ws: ServerWebSocket<any>) => Promise<void>;
-
-    /**
-     * Called when the server receives a "pong" message from a client.
-     */
-    onPong?: (ws: ServerWebSocket<any>) => Promise<void>;
-
-    /**
-     * Called if a client fails to respond to a ping message.
-     */
-    onPingTimeout?: (ws: ServerWebSocket<any>) => Promise<void>;
-}
-
-/**
- * Configuration object for the generic WebSocket manager.
- * 
- * @template TState The shape of your application's state
- * @template TMessage The union of all message types that may be handled
- */
-export interface BackendWebSocketManagerConfig<
-    TState,
-    TMessage extends BaseMessage
-> {
-    /**
-     * A function to retrieve the current state from wherever it is stored
-     * (database, in-memory, etc.).
-     */
-    getState: () => Promise<TState>;
-
-    /**
-     * A function to persist the updated state in your data store.
-     */
-    setState: (state: TState) => Promise<void>;
-
-    /**
-     * An array of message handlers. Each handler processes a specific message type.
-     */
-    messageHandlers: Array<MessageHandler<TState, TMessage>>;
-
-    /**
-     * Optional debug flag for logging.
-     */
-    debug?: boolean;
-
-    /**
-     * Optional hooks for lifecycle events.
-     */
-    hooks?: BackendWebSocketManagerHooks<TState>;
-
-    /**
-     * Milliseconds to wait before sending a ping to each client.
-     * If not provided, pinging is disabled.
-     */
-    heartbeatIntervalMs?: number;
-
-    /**
-     * Milliseconds to wait for a pong response before marking a client as timed out.
-     */
-    pingTimeoutMs?: number;
-
-    /**
-     * Optional validator for incoming messages.
-     * Example usage with zod:
-     *   validateMessage: (msg) => MyZodSchema.parse(msg)
-     */
-    validateMessage?: (rawMessage: unknown) => TMessage;
-}
 
 /**
  * A generic WebSocket manager that can handle a variety of states and messages.
@@ -109,7 +27,7 @@ export class BackendWebSocketManager<
      * Middleware array. Each middleware processes a TMessage
      * and returns a (possibly transformed) TMessage.
      */
-    private middlewares: Array<(message: TMessage) => Promise<TMessage>> = [];
+    private middlewares: Array<WebSocketMiddleware<TMessage>> = [];
 
     /**
      * Keeps track of timestamps (in ms) of the last pong received from each client.
@@ -117,27 +35,46 @@ export class BackendWebSocketManager<
      */
     private lastPongTimes: Map<ServerWebSocket<any>, number>;
 
-    private heartbeatTimer: NodeJS.Timer | undefined;
+    // New state management
+    private state: TState;
+    private version: number;
+    private adapter?: BackendWebSocketPersistenceAdapter<TState>;
+
+    private heartbeatTimer?: ReturnType<typeof setInterval>;
+    private syncInterval?: ReturnType<typeof setInterval>;
 
     constructor(config: BackendWebSocketManagerConfig<TState, TMessage>) {
         this.config = config;
         this.connections = new Set();
         this.lastPongTimes = new Map();
 
+        // Initialize versioning
+        this.version = config.enableVersioning ? 0 : -1;
+        this.adapter = config.adapter;
+        this.state = config.initialState as TState;
+
         if (this.config.debug) {
             console.log("[WebSocketManager] Initialized with debug = true");
         }
 
-        // If heartbeatIntervalMs is set, start the interval.
-        if (this.config.heartbeatIntervalMs && this.config.heartbeatIntervalMs > 0) {
+        // Initialize adapter and load state
+        void this.init();
+
+        // Start heartbeat if configured
+        if (config.heartbeatIntervalMs && config.heartbeatIntervalMs > 0) {
             this.startHeartbeat();
+        }
+
+        // Start sync interval if configured
+        if (config.syncIntervalMs && config.syncIntervalMs > 0) {
+            this.startSyncInterval(config.syncIntervalMs);
         }
     }
 
     /**
      * Register a new middleware function that processes incoming messages.
      */
-    public async use(middleware: (message: TMessage) => Promise<TMessage>): Promise<void> {
+    public async use(middleware: WebSocketMiddleware<TMessage>): Promise<void> {
         this.middlewares.push(middleware);
     }
 
@@ -145,16 +82,14 @@ export class BackendWebSocketManager<
      * Starts the heartbeat/ping cycle if not already started.
      */
     private startHeartbeat(): void {
-        // Clear any existing timer.
         if (this.heartbeatTimer) {
             clearInterval(this.heartbeatTimer);
         }
 
         this.heartbeatTimer = setInterval(() => {
             for (const ws of this.connections) {
-                // If a client is still open, attempt to ping it.
                 if (ws.readyState === WebSocket.OPEN) {
-                    this.sendPing(ws);
+                    void this.sendPing(ws);
                 }
             }
         }, this.config.heartbeatIntervalMs);
@@ -165,21 +100,18 @@ export class BackendWebSocketManager<
      */
     private async sendPing(ws: ServerWebSocket<any>): Promise<void> {
         try {
-            const pingMessage = JSON.stringify({ type: "ping" });
-            ws.send(pingMessage);
+            ws.send(JSON.stringify({ type: "ping" }));
             if (this.config.hooks?.onPing) {
                 await this.config.hooks.onPing(ws);
             }
 
-            // If we have a pingTimeoutMs configured, we track the time.
             if (this.config.pingTimeoutMs && this.config.pingTimeoutMs > 0) {
-                const timeout = setTimeout(async () => {
+                setTimeout(async () => {
                     const lastPong = this.lastPongTimes.get(ws) || 0;
                     const now = Date.now();
-                    // If we haven't received a pong in time, close or mark inactive.
                     if (now - lastPong > this.config.pingTimeoutMs!) {
                         if (this.config.debug) {
-                            console.warn("[WebSocketManager] Ping timeout for connection. Closing...");
+                            console.warn("[WebSocketManager] Ping timeout. Closing...");
                         }
                         if (this.config.hooks?.onPingTimeout) {
                             await this.config.hooks.onPingTimeout(ws);
@@ -187,9 +119,6 @@ export class BackendWebSocketManager<
                         ws.close();
                     }
                 }, this.config.pingTimeoutMs);
-
-                // Clear the timer if we receive a pong, so store it if needed.
-                // We'll do that in handlePong method.
             }
         } catch (error) {
             if (this.config.debug) {
@@ -224,16 +153,15 @@ export class BackendWebSocketManager<
             await this.config.hooks.onConnect(ws);
         }
 
-        // Optional: Send the current state to the new client
+        // Send the current state to the new client
         try {
-            const currentState = await this.config.getState();
             const message = {
                 type: "initial_state",
-                data: currentState
+                data: this.state
             };
             ws.send(JSON.stringify(message));
         } catch (error) {
-            console.error("[WebSocketManager] Error fetching initial state:", error);
+            console.error("[WebSocketManager] Error sending initial state:", error);
             ws.close();
         }
     }
@@ -305,22 +233,28 @@ export class BackendWebSocketManager<
             return;
         }
 
-        // Run the handler
+        // Run the handler with internal state management
         try {
-            // We read the old state for the onStateChange hook, in case the handler changes state.
-            const oldState = await this.config.getState();
+            const oldState = this.state;
 
             await handler.handle(
                 ws,
                 parsed,
-                this.config.getState,
+                async () => this.state,
                 async (updated: TState) => {
-                    // Before we actually set the state, check if it's changed from oldState.
-                    await this.config.setState(updated);
-                    // If changed, call onStateChange if provided.
-                    if (this.config.hooks?.onStateChange && JSON.stringify(oldState) !== JSON.stringify(updated)) {
+                    if (this.version >= 0) {
+                        this.version++;
+                    }
+                    this.state = updated;
+                    
+                    // If changed, call onStateChange if provided
+                    if (this.config.hooks?.onStateChange && 
+                        JSON.stringify(oldState) !== JSON.stringify(updated)) {
                         await this.config.hooks.onStateChange(oldState, updated);
                     }
+
+                    // Sync if we have an adapter
+                    await this.sync();
                 }
             );
         } catch (error) {
@@ -333,10 +267,9 @@ export class BackendWebSocketManager<
      */
     public async broadcastState(): Promise<void> {
         try {
-            const updatedState = await this.config.getState();
             const message = {
                 type: "state_update",
-                data: updatedState
+                data: this.state
             };
             const serialized = JSON.stringify(message);
 
@@ -364,6 +297,97 @@ export class BackendWebSocketManager<
             }
         } catch (error) {
             console.error("[WebSocketManager] Broadcast error:", error);
+        }
+    }
+
+    /**
+     * Initialize adapter and load state
+     */
+    private async init(): Promise<void> {
+        if (!this.adapter) return;
+        
+        await this.adapter.init();
+        const data = await this.adapter.load();
+        this.state = data.state;
+        
+        if (this.config.enableVersioning && typeof data.version === "number") {
+            this.version = data.version;
+        }
+    }
+
+    /**
+     * Start periodic sync if configured
+     */
+    private startSyncInterval(intervalMs: number): void {
+        if (this.syncInterval) {
+            clearInterval(this.syncInterval);
+        }
+        this.syncInterval = setInterval(() => {
+            void this.sync();
+        }, intervalMs);
+    }
+
+    /**
+     * Sync state to adapter
+     */
+    public async sync(): Promise<void> {
+        if (!this.adapter) return;
+        
+        await this.adapter.save(this.state, this.version);
+        if (this.config.hooks?.onSync) {
+            await this.config.hooks.onSync(this.state, this.version);
+        }
+    }
+
+    /**
+     * Create backup if adapter supports it
+     */
+    public async createBackup(): Promise<void> {
+        if (!this.adapter?.backup) return;
+        
+        await this.adapter.backup();
+        if (this.config.hooks?.onBackup) {
+            await this.config.hooks.onBackup(Date.now(), this.version);
+        }
+    }
+
+    /**
+     * Return the current version number
+     */
+    public getVersion(): number {
+        return this.version;
+    }
+
+    /**
+     * Return the current state
+     */
+    public getState(): TState {
+        return this.state;
+    }
+
+    /**
+     * Clean up resources
+     */
+    public dispose(): void {
+        // Close all connections
+        for (const ws of this.connections) {
+            try {
+                ws.close();
+            } catch {
+                // ignore errors
+            }
+        }
+        this.connections.clear();
+        this.lastPongTimes.clear();
+
+        // Clear intervals
+        if (this.heartbeatTimer) {
+            clearInterval(this.heartbeatTimer);
+            this.heartbeatTimer = undefined;
+        }
+        if (this.syncInterval) {
+            clearInterval(this.syncInterval);
+            this.syncInterval = undefined;
         }
     }
 }

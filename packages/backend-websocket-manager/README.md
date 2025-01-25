@@ -1,57 +1,54 @@
-# @bnk/backend-websocket-manager
+# BNK's Backend Websocket manager
 
-**@bnk/backend-websocket-manager** is a modular, extensible, and strongly-typed WebSocket manager for Bun-based servers, designed to handle a variety of real-time use cases with minimal overhead. This package leverages Bun’s native `ServerWebSocket`, offering a customizable, pluggable architecture to manage application state and broadcast changes to connected clients.
+A pluggable, type-safe WebSocket manager for **Bun** servers. This library focuses on simplicity, modularity, and performance. It provides a clean, extensible API for handling real-time state and broadcast scenarios, with optional SQLite/file persistence and built-in or custom validation strategies.
 
-## Key Features
+---
 
-- **Strong Typing**: Uses TypeScript generics and advanced types (`BaseMessage`, `MessageHandler`) to ensure type safety for state and message handling.
-- **Pluggable Architecture**: Register multiple message handlers for different message types. Each handler deals with its own piece of state logic.
-- **Easy State Management**: Provide `getState` and `setState` functions, allowing you to store and retrieve state from a DB, in-memory object, or any other storage.
-- **Broadcast Support**: Broadcast updated state to all connected clients using `broadcastState()`.
-- **Debug-Ready**: Pass `debug: true` in the configuration to enable verbose logging.
-- **Testable by Design**: Written with testability in mind; easily mock `getState`, `setState`, or individual message handlers within Bun’s test suite.
+## Quick Start
 
-## Installation
+Below is the fastest way to get up and running. This minimal setup:
+
+1. Defines a **state** for your application.
+2. Defines a **message** type (for incrementing a counter).
+3. Creates a **WebSocket manager** with an in-memory state.
+4. Integrates with a Bun server to handle connections and messages.
+
+### 1. Install
 
 ```bash
 # Using Bun
 bun add @bnk/backend-websocket-manager
 
-# Or, if you are mixing with npm/yarn, you can also do:
+# Or with npm/yarn
 npm install @bnk/backend-websocket-manager
 # yarn add @bnk/backend-websocket-manager
 ```
 
-## Basic Usage
+### 2. Define Your State and Message
 
-Below is a minimal example of how to use **@bnk/backend-websocket-manager**. This example sets up an in-memory state and a single message handler for demonstration.
-
-### 1. Create Your State and Handlers
-
+**`my-types.ts`**:
 ```ts
-// my-app-state.ts
+import type { BaseMessage } from "@bnk/backend-websocket-manager";
+
 export interface MyAppState {
   counter: number;
 }
-
-// my-message-types.ts
-import { BaseMessage } from "@bnk/backend-websocket-manager";
 
 export interface IncrementMessage extends BaseMessage {
   type: "increment";
   amount: number;
 }
 
-// Optionally combine multiple messages into a union
-export type MyAppMessage = IncrementMessage;
+export type MyAppMessage = IncrementMessage; // Or a union of multiple message types
 ```
 
-```ts
-// my-message-handlers.ts
-import { MessageHandler } from "@bnk/backend-websocket-manager";
-import { MyAppState, MyAppMessage } from "./my-message-types";
+### 3. Set Up a Handler
 
-// A simple handler to increment a counter in the state
+**`message-handlers.ts`**:
+```ts
+import type { MessageHandler } from "@bnk/backend-websocket-manager";
+import type { MyAppState, MyAppMessage } from "./my-types";
+
 export const incrementHandler: MessageHandler<MyAppState, MyAppMessage> = {
   type: "increment",
   async handle(ws, message, getState, setState) {
@@ -64,47 +61,34 @@ export const incrementHandler: MessageHandler<MyAppState, MyAppMessage> = {
 export const myHandlers = [incrementHandler];
 ```
 
-### 2. Set Up Your WebSocket Manager
+### 4. Create the WebSocket Manager
 
+**`manager-setup.ts`**:
 ```ts
-// backend-websocket-manager-setup.ts
-import { WebSocketManager } from "@bnk/backend-websocket-manager";
-import { MyAppState, MyAppMessage } from "./my-message-types";
-import { myHandlers } from "./my-message-handlers";
+import { BackendWebSocketManager } from "@bnk/backend-websocket-manager";
+import { myHandlers } from "./message-handlers";
+import type { MyAppState, MyAppMessage } from "./my-types";
 
-// In-memory example state
-let currentState: MyAppState = { counter: 0 };
+const initialState: MyAppState = { counter: 0 };
 
-const getState = async (): Promise<MyAppState> => {
-  // Return a clone to simulate immutable reads
-  return structuredClone(currentState);
-};
-
-const setState = async (newState: MyAppState): Promise<void> => {
-  // Simulate saving newState to a DB or in-memory store
-  currentState = structuredClone(newState);
-};
-
-// Create the manager
-export const myWebSocketManager = new WebSocketManager<MyAppState, MyAppMessage>({
-  getState,
-  setState,
+export const myWebSocketManager = new BackendWebSocketManager<MyAppState, MyAppMessage>({
+  initialState,
   messageHandlers: myHandlers,
-  debug: true, // optional
+  debug: true, // Enable verbose console logs
 });
 ```
 
-### 3. Integrate with a Bun Server
+### 5. Integrate with Bun
 
+**`bun-server.ts`**:
 ```ts
-// bun-server.ts
 import { serve } from "bun";
-import { myWebSocketManager } from "./backend-websocket-manager-setup";
+import { myWebSocketManager } from "./manager-setup";
 
 serve({
   port: 3000,
-  fetch(req: Request) {
-    return new Response("Hello from Bun server!", { status: 200 });
+  fetch() {
+    return new Response("Hello from Bun!", { status: 200 });
   },
   websocket: {
     open(ws) {
@@ -113,96 +97,274 @@ serve({
     close(ws) {
       myWebSocketManager.handleClose(ws);
     },
-    async message(ws, msg) {
-      // Handle the incoming message
-      await myWebSocketManager.handleMessage(ws, msg.toString());
-      
-      // Optionally broadcast updated state to all clients
+    async message(ws, rawData) {
+      // Process incoming messages
+      await myWebSocketManager.handleMessage(ws, rawData.toString());
+
+      // Broadcast the updated state to all clients
       await myWebSocketManager.broadcastState();
     },
-  }
+  },
 });
 
-console.log("Server running at http://localhost:3000");
+console.log("Server is running on http://localhost:3000");
 ```
 
-### 4. Sending Messages from the Client
-
-From the browser (or another WebSocket client), connect and send an `increment` message:
+### 6. Send a Message from the Client
 
 ```ts
 const ws = new WebSocket("ws://localhost:3000");
 
 ws.onopen = () => {
+  // Increment the counter by 5
   ws.send(JSON.stringify({ type: "increment", amount: 5 }));
 };
 
 ws.onmessage = (event) => {
-  console.log("Server says:", event.data);
+  console.log("Server message:", event.data);
 };
 ```
 
-## Advanced Usage
+---
 
-### Multiple Message Handlers
+## Validation Examples
 
-You can define multiple handlers to deal with different message subtypes. Each handler is matched by its `type` field.  
-In more complex applications, create separate modules for different domains (e.g., user chat, project management, etc.) and then combine all handlers into one array:
+You can validate incoming messages either manually or by using your preferred schema validation library. Simply supply a `validateMessage` function in the manager config.
+
+### Manual Validation
 
 ```ts
-const allHandlers = [
-  ...chatHandlers,
-  ...projectHandlers,
-  // etc...
-];
+import { BackendWebSocketManager } from "@bnk/backend-websocket-manager";
+import { myHandlers } from "./message-handlers";
+import type { MyAppState, MyAppMessage } from "./my-types";
 
-const manager = new WebSocketManager({
-  getState,
-  setState,
-  messageHandlers: allHandlers,
+function manualValidate(raw: unknown): MyAppMessage {
+  if (
+    typeof raw === "object" &&
+    raw !== null &&
+    (raw as any).type === "increment" &&
+    typeof (raw as any).amount === "number"
+  ) {
+    return raw as MyAppMessage;
+  }
+  throw new Error("Invalid message format");
+}
+
+export const myWebSocketManager = new BackendWebSocketManager<MyAppState, MyAppMessage>({
+  initialState: { counter: 0 },
+  messageHandlers: myHandlers,
+  validateMessage: (raw) => {
+    const parsed = JSON.parse(String(raw));
+    return manualValidate(parsed);
+  },
 });
 ```
 
-### Broadcasting State
+### Using Zod
 
-Whenever your state changes, you can call `manager.broadcastState()` to push the updated state to all connected clients. Internally, this calls `getState()`, serializes it, and sends it to each active WebSocket connection.
+```ts
+import { z } from "zod";
+import { BackendWebSocketManager } from "@bnk/backend-websocket-manager";
+import { myHandlers } from "./message-handlers";
+import type { MyAppState, MyAppMessage } from "./my-types";
 
-### Debug Logging
+const incrementSchema = z.object({
+  type: z.literal("increment"),
+  amount: z.number(),
+});
 
-Set `debug: true` in the manager config to see detailed logs of connections, closures, and message parsing. This is helpful for troubleshooting and development.
+// If you have multiple message types, you can use z.discriminatedUnion(...)
+const messageSchema = incrementSchema; // Example: single schema
 
-### Heartbeats & Connection Stability
+export const myWebSocketManager = new BackendWebSocketManager<MyAppState, MyAppMessage>({
+  initialState: { counter: 0 },
+  messageHandlers: myHandlers,
+  validateMessage: (raw) => {
+    return messageSchema.parse(JSON.parse(String(raw))) as MyAppMessage;
+  },
+});
+```
 
-If you’re building a high-availability or production-grade system, you may also implement a heartbeat or ping/pong mechanism. This can help detect stale connections. See the [test suite](./src/generic-backend-websocket-manager.test.ts) for an example of using a heartbeat interval.
+### Using Other Libraries (e.g., Yup, Joi)
+
+```ts
+import * as yup from "yup";
+import { BackendWebSocketManager } from "@bnk/backend-websocket-manager";
+import type { MyAppState, MyAppMessage } from "./my-types";
+
+const incrementSchema = yup.object().shape({
+  type: yup.string().oneOf(["increment"]).required(),
+  amount: yup.number().required(),
+});
+
+function validateWithYup(raw: unknown): MyAppMessage {
+  const parsed = JSON.parse(String(raw));
+  return incrementSchema.validateSync(parsed) as MyAppMessage;
+}
+
+export const myWebSocketManager = new BackendWebSocketManager<MyAppState, MyAppMessage>({
+  initialState: { counter: 0 },
+  messageHandlers: [],
+  validateMessage: validateWithYup,
+});
+```
+
+---
+
+## SQLite Persistence
+
+If you need to persist state between restarts, you can use the built-in **`SQLiteWebSocketAdapter`**. It stores your entire state object and version number in a single SQLite table.
+
+```ts
+import { BackendWebSocketManager, SQLiteWebSocketAdapter } from "@bnk/backend-websocket-manager";
+import type { MyAppState, MyAppMessage } from "./my-types";
+import { myHandlers } from "./message-handlers";
+
+const sqliteAdapter = new SQLiteWebSocketAdapter<MyAppState>({
+  path: "my-database.sqlite", // Path to your SQLite file
+  tableName: "my_custom_websocket_table", // Optional, defaults to "websocket_state"
+});
+
+export const myWebSocketManager = new BackendWebSocketManager<MyAppState, MyAppMessage>({
+  initialState: { counter: 0 },
+  messageHandlers: myHandlers,
+  adapter: sqliteAdapter,
+  enableVersioning: true, // Optionally increment version on each state update
+  syncIntervalMs: 60000,  // Automatically persist state every 60 seconds
+});
+```
+
+- On startup, the adapter creates a table (if it doesn’t exist).
+- It loads the previously saved state/version into the manager.
+- On each state update, `save()` is called, writing your data to SQLite.
+- You can also manually call `myWebSocketManager.createBackup()` for a backup.
+
+---
+
+## File Persistence
+
+Alternatively, a **`FileWebSocketAdapter`** is available to store state on the filesystem as JSON:
+
+```ts
+import { BackendWebSocketManager, FileWebSocketAdapter } from "@bnk/backend-websocket-manager";
+import { myHandlers } from "./message-handlers";
+import type { MyAppState, MyAppMessage } from "./my-types";
+
+const fileAdapter = new FileWebSocketAdapter<MyAppState>({
+  filePath: "./my-websocket-state.json",
+  backupsDir: "./backups", // optional
+});
+
+export const myWebSocketManager = new BackendWebSocketManager<MyAppState, MyAppMessage>({
+  initialState: { counter: 0 },
+  messageHandlers: myHandlers,
+  adapter: fileAdapter,
+  enableVersioning: true,
+});
+```
+
+---
+
+## Configuration Overview
+
+When creating a new `BackendWebSocketManager`, you can pass in various config options:
+
+```ts
+interface BackendWebSocketManagerConfig<TState, TMessage> {
+  // Initial in-memory state (if no adapter is used, or if adapter data is empty)
+  initialState?: TState;
+
+  // Array of message handlers { type, handle(...) }
+  messageHandlers: Array<MessageHandler<TState, TMessage>>;
+
+  // Debug flag for console logging
+  debug?: boolean;
+
+  // Lifecycle hooks (onConnect, onDisconnect, onStateChange, etc.)
+  hooks?: BackendWebSocketManagerHooks<TState>;
+
+  // Interval for sending "ping" messages (ms). If 0 or undefined, heartbeat is disabled.
+  heartbeatIntervalMs?: number;
+
+  // Timeout waiting for "pong" before disconnecting (ms).
+  pingTimeoutMs?: number;
+
+  // Function/schema to validate raw messages. Expects returning a TMessage or throwing an error.
+  validateMessage?: (rawMessage: unknown) => TMessage;
+
+  // Persistence adapter for loading/saving state (e.g., SQLiteWebSocketAdapter or FileWebSocketAdapter).
+  adapter?: BackendWebSocketPersistenceAdapter<TState>;
+
+  // If true, automatically increments an internal version on each state update.
+  enableVersioning?: boolean;
+
+  // If set, automatically call manager.sync() at this interval in milliseconds.
+  syncIntervalMs?: number;
+}
+```
+
+---
 
 ## Testing
 
-**@bnk/backend-websocket-manager** is built for straightforward testing with Bun. Key points:
-
-- **Mocking**: You can mock out `getState` and `setState` for unit tests.
-- **Handlers**: Each message handler is testable as a standalone function since it just needs `getState`, `setState`, and a mocked WebSocket.
-- **Integration**: Combine all handlers, start a test Bun server, and run integration tests to ensure messages flow as expected.
-
-A sample test file is included in `src/generic-backend-websocket-manager.test.ts`, showcasing how to verify:
-
-1. Incoming messages are parsed and handled.
-2. State is updated correctly.
-3. WebSocket connections open and close as expected.
+This library is designed to work seamlessly with **Bun’s built-in test runner**. You can mock out WebSocket connections, adapters, and hooks for unit tests. An example test suite is provided in the repository.
 
 To run tests:
 
 ```bash
-bun test src/
+bun test
 ```
 
-## Contributing
+### Example Test Snippet
 
-Feel free to open issues or pull requests to improve **@bnk/backend-websocket-manager**. Whether it’s a feature request, bug fix, or documentation enhancement, all contributions are welcome.
+```ts
+import { describe, it, expect } from "bun:test";
+import { BackendWebSocketManager } from "@bnk/backend-websocket-manager";
+import type { BaseMessage } from "@bnk/backend-websocket-manager";
 
-## License
+interface TestState { counter: number }
+interface IncrementMsg extends BaseMessage {
+  type: "increment";
+  amount: number;
+}
 
-This project is licensed under the [MIT License](./LICENSE).
+describe("BackendWebSocketManager", () => {
+  it("increments the state counter", async () => {
+    const manager = new BackendWebSocketManager<TestState, IncrementMsg>({
+      initialState: { counter: 0 },
+      messageHandlers: [{
+        type: "increment",
+        handle: async (ws, message, getState, setState) => {
+          const state = await getState();
+          state.counter += message.amount;
+          await setState(state);
+        },
+      }],
+    });
+
+    // Simulate a WebSocket message
+    const mockWs = {} as any; // A partial mock for demonstration
+    await manager.handleOpen(mockWs);
+    await manager.handleMessage(mockWs, JSON.stringify({ type: "increment", amount: 5 }));
+
+    expect(manager.getState().counter).toBe(5);
+  });
+});
+```
 
 ---
 
-**@bnk/backend-websocket-manager** aims to give you a solid foundation for real-time WebSocket applications using Bun, with minimal friction and maximum flexibility. If you find this library helpful, consider sharing feedback and improvements!
+## Contributing
+
+Contributions of all kinds are welcome, whether it’s a bug report, new feature, or documentation improvement. Please open an issue or submit a pull request on GitHub. Make sure to:
+
+- Write or update tests when adding new features.
+- Follow the existing coding style (modern TypeScript, ES modules).
+
+---
+
+## License
+
+This project is available under the [MIT License](./LICENSE).  
+Enjoy building real-time applications with **backend-websocket-manager**!
+```
