@@ -1,56 +1,48 @@
-/**
- * Common TypeScript interfaces for the chat app,
- * ensuring both client and server see the same shape.
- */
+import { z } from "zod";
 
 /**
- * The shape of application state that both server and client care about.
+ * 1) The overall state of our chat app
  */
-export interface ChatAppState {
-    messageLog: string[];
-}
+export const ChatAppStateSchema = z.object({
+    messageLog: z.array(z.string()),
+});
+export type ChatAppState = z.infer<typeof ChatAppStateSchema>;
 
 /**
- * A message the client sends to the server. In this simple chat, the client
- * sends just one type of message: "chat".
+ * 2) The client->server messages. 
+ *    Here, we define the chat payload and wrap it in a Zod schema.
  */
-export interface ChatClientMessage {
-    type: "chat";
-    payload: {
-        text: string;
-        sender: string;
-    };
-}
+export const ChatClientMessageSchema = z.object({
+    type: z.literal("chat"),
+    payload: z.object({
+        text: z.string().min(1),
+        sender: z.string().min(1),
+    }),
+});
+
+// In this simple demo, the only outgoing message is "chat"
+export const OutgoingClientMessageSchema = ChatClientMessageSchema;
+export type OutgoingClientMessage = z.infer<typeof OutgoingClientMessageSchema>;
 
 /**
- * Possible server->client messages:
- *
- * 1) `initial_state`: Sent when the client first connects, providing
- *    the entire chat log in `data`.
- * 2) `state_update`: Sent on subsequent updates, e.g. new messages appended
- *    to the log.
+ * 3) The server->client messages.
+ *    We have two: 'initial_state' and 'state_update'.
  */
-export interface InitialStateServerMessage {
-    type: "initial_state";
-    data: ChatAppState;
-}
+export const InitialStateServerMessageSchema = z.object({
+    type: z.literal("initial_state"),
+    data: ChatAppStateSchema,
+});
 
-export interface StateUpdateServerMessage {
-    type: "state_update";
-    data: ChatAppState;
-}
+export const StateUpdateServerMessageSchema = z.object({
+    type: z.literal("state_update"),
+    data: ChatAppStateSchema,
+});
 
 /**
- * Combine server->client messages into one union type, so the client
- * can easily handle them in a typed manner.
+ * Union of all server->client message types
  */
-export type IncomingServerMessage =
-    | InitialStateServerMessage
-    | StateUpdateServerMessage;
-
-/**
- * Combine client->server messages into one union type, so the server
- * can handle them all. Here we just have `ChatClientMessage`, but
- * you can add more subtypes if needed.
- */
-export type OutgoingClientMessage = ChatClientMessage;
+export const IncomingServerMessageSchema = z.discriminatedUnion("type", [
+    InitialStateServerMessageSchema,
+    StateUpdateServerMessageSchema,
+]);
+export type IncomingServerMessage = z.infer<typeof IncomingServerMessageSchema>;

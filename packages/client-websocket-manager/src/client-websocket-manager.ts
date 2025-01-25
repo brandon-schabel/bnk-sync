@@ -2,14 +2,13 @@ import type { BaseServerMessage, BaseClientMessage } from "./client-websocket-ty
 
 /**
  * Configuration for our client-side manager.
- * You can give default types for TIncoming and TOutgoing if you like.
  */
 export interface ClientWebSocketManagerConfig<
     TIncoming extends BaseServerMessage = BaseServerMessage,
     TOutgoing extends BaseClientMessage = BaseClientMessage
 > {
     /**
-     * The URL to which we connect. For example: "ws://localhost:3007"
+     * The URL to which we connect. e.g. "ws://localhost:3007"
      */
     url: string;
 
@@ -54,8 +53,7 @@ export interface ClientWebSocketManagerConfig<
     reconnectIntervalMs?: number;
 
     /**
-     * Max number of reconnect attempts before giving up.
-     * Defaults to infinite if not specified.
+     * Max number of reconnect attempts before giving up (default: infinite).
      */
     maxReconnectAttempts?: number;
 
@@ -63,10 +61,23 @@ export interface ClientWebSocketManagerConfig<
      * Called each time a reconnect attempt starts.
      */
     onReconnect?: (attemptNumber: number) => void;
+
+    /**
+     * Optional function or schema to validate incoming messages from the server.
+     * If provided, it should throw on invalid data or return a valid `TIncoming`.
+     */
+    validateIncomingMessage?: (raw: unknown) => TIncoming;
+
+    /**
+     * Optional function or schema to validate outgoing messages before sending.
+     * If provided, it should throw on invalid data or return a valid `TOutgoing`.
+     */
+    validateOutgoingMessage?: (msg: TOutgoing) => TOutgoing;
 }
 
 /**
- * A generic client-side WebSocket Manager.
+ * A generic client-side WebSocket Manager that can optionally validate both incoming
+ * and outgoing messages. This ensures type safety when using a shared Zod schema.
  */
 export class ClientWebSocketManager<
     TIncoming extends BaseServerMessage = BaseServerMessage,
@@ -83,7 +94,7 @@ export class ClientWebSocketManager<
     }
 
     /**
-     * Create and open the WebSocket connection
+     * Create and open the WebSocket connection.
      */
     private connect() {
         const { url, debug } = this.config;
@@ -118,7 +129,8 @@ export class ClientWebSocketManager<
     }
 
     /**
-     * Send a strongly-typed message to the server
+     * Send a strongly-typed message to the server,
+     * optionally validating it first if `validateOutgoingMessage` is set.
      */
     public sendMessage(msg: TOutgoing) {
         if (!this.socket || this.socket.readyState !== WebSocket.OPEN) {
@@ -129,21 +141,25 @@ export class ClientWebSocketManager<
         }
 
         try {
-            const str = JSON.stringify(msg);
+            let validated = msg;
+            if (this.config.validateOutgoingMessage) {
+                validated = this.config.validateOutgoingMessage(msg);
+            }
+            const str = JSON.stringify(validated);
             this.socket.send(str);
         } catch (error) {
-            console.error("[ClientWebSocketManager] Error sending message:", error);
+            console.error("[ClientWebSocketManager] Error validating/sending message:", error);
         }
     }
 
     /**
-     * Called when WebSocket opens
+     * Called when WebSocket opens.
      */
     private handleOpen = () => {
         if (this.config.debug) {
             console.log("[ClientWebSocketManager] Connection opened");
         }
-        // Reset our reconnect attempts since we've successfully connected.
+        // Reset reconnect attempts on successful connection.
         this.reconnectAttempts = 0;
         this.clearReconnectTimer();
 
@@ -151,7 +167,7 @@ export class ClientWebSocketManager<
     };
 
     /**
-     * Called when WebSocket closes
+     * Called when WebSocket closes.
      */
     private handleClose = (event: CloseEvent) => {
         if (this.config.debug) {
@@ -164,7 +180,6 @@ export class ClientWebSocketManager<
             const maxAttempts = this.config.maxReconnectAttempts ?? Infinity;
             if (this.reconnectAttempts < maxAttempts) {
                 this.reconnectAttempts += 1;
-                // Let consumer know a reconnect attempt is about to happen
                 this.config.onReconnect?.(this.reconnectAttempts);
 
                 this.reconnectTimeoutId = setTimeout(() => {
@@ -184,7 +199,7 @@ export class ClientWebSocketManager<
     };
 
     /**
-     * Called on a WebSocket error
+     * Called on a WebSocket error.
      */
     private handleError = (event: Event) => {
         if (this.config.debug) {
@@ -194,28 +209,42 @@ export class ClientWebSocketManager<
     };
 
     /**
-     * Called when a message arrives from the server
+     * Called when a message arrives from the server.
+     * Optionally validates the data if `validateIncomingMessage` is set.
      */
     private handleMessage = (event: MessageEvent) => {
-        let incoming: TIncoming;
+        let parsed: unknown;
         try {
-            incoming = JSON.parse(event.data) as TIncoming;
+            parsed = JSON.parse(event.data);
         } catch (err) {
-            console.error("[ClientWebSocketManager] Failed to parse incoming message", err);
+            console.error("[ClientWebSocketManager] Failed to parse incoming data:", err);
             return;
         }
 
-        // @ts-ignore
-        const handler = this.config.messageHandlers?.[incoming.type];
+        // If user provided a validator, run it. Otherwise, cast as TIncoming.
+        let incoming: TIncoming;
+        if (this.config.validateIncomingMessage) {
+            try {
+                incoming = this.config.validateIncomingMessage(parsed);
+            } catch (validationError) {
+                console.error("[ClientWebSocketManager] Incoming message validation failed:", validationError);
+                return;
+            }
+        } else {
+            incoming = parsed as TIncoming;
+        }
+
+        const typeKey = incoming.type as TIncoming["type"];
+        const handler = this.config.messageHandlers?.[typeKey];
         if (handler) {
-            handler(incoming);
+            handler(incoming as Extract<TIncoming, { type: typeof typeKey }>);
         } else if (this.config.debug) {
             console.warn("[ClientWebSocketManager] No handler for message type:", incoming.type);
         }
     };
 
     /**
-     * Clear any pending reconnect timers
+     * Clear any pending reconnect timers.
      */
     private clearReconnectTimer() {
         if (this.reconnectTimeoutId) {

@@ -1,14 +1,13 @@
 import { serve } from "bun";
 import {
     BackendWebSocketManager,
-    type BaseMessage,
     type MessageHandler
 } from "@bnk/backend-websocket-manager";
 
-import type {
-    ChatAppState,
-    OutgoingClientMessage,
-    IncomingServerMessage
+import {
+    OutgoingClientMessageSchema,
+    type ChatAppState,
+    type OutgoingClientMessage,
 } from "shared-types";
 
 
@@ -53,10 +52,15 @@ async function setState(newState: ChatAppState): Promise<void> {
  * Create the manager with a debug flag to see logs in the console.
  */
 const manager = new BackendWebSocketManager<ChatAppState, OutgoingClientMessage>({
-    getState,
-    setState,
+    initialState: await getState(),
     messageHandlers: [chatHandler],
     debug: true,
+    validateMessage: (raw) => {
+        if (typeof raw !== 'object' || raw === null) {
+            throw new Error('Expected message to be an object');
+        }
+        return OutgoingClientMessageSchema.parse(raw);
+    },
 });
 
 /**

@@ -11,6 +11,9 @@
     "files": [
         "src"
     ],
+    "dependencies": {
+        "zod": "^3.23.1"
+    },
     "devDependencies": {
         "typescript": "^5.7.2",
         "bun-types": "latest"

@@ -1,3 +1,5 @@
+// packages/react-websocket-manager/src/use-client-websocket.ts
+
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
     ClientWebSocketManager,
@@ -12,16 +14,21 @@ export interface UseClientWebSocketConfig<
     TIncoming extends BaseServerMessage = BaseServerMessage,
     TOutgoing extends BaseClientMessage = BaseClientMessage
 > {
+    /**
+     * Optionally provide a pre-instantiated manager (skips creating a new one).
+     */
     manager?: ClientWebSocketManager<TIncoming, TOutgoing>;
-    config?: Partial<ClientWebSocketManagerConfig<TIncoming, TOutgoing>>;
-    // TODO: Add these on the manager 
-    // onManagerInstantiated?: (manager: ClientWebSocketManager<TIncoming, TOutgoing>) => void;
-    // onMessageReceived?: (message: TIncoming) => void;
-    // onMessageSent?: (message: TOutgoing) => void;
-    // onDisconnect?: () => void;
 
+    /**
+     * Configuration for creating a new manager if one isn't provided.
+     */
+    config?: Partial<ClientWebSocketManagerConfig<TIncoming, TOutgoing>>;
 }
 
+/**
+ * React hook for conveniently managing a WebSocket connection in a React app.
+ * Allows optional message validation for both incoming and outgoing data.
+ */
 export function useClientWebSocket<
     TIncoming extends BaseServerMessage = BaseServerMessage,
     TOutgoing extends BaseClientMessage = BaseClientMessage
@@ -32,25 +39,25 @@ export function useClientWebSocket<
     const [isOpen, setIsOpen] = useState(false);
     const managerRef = useRef<ClientWebSocketManager<TIncoming, TOutgoing> | null>(null);
 
-    // Initialize WebSocket manager only if it doesn't already exist
+    // Initialize the WebSocket manager only if it doesn't already exist
     if (!managerRef.current) {
-        if (config && !config.url && !managerProp) {
-            throw new Error(
-                "useClientWebSocket error: 'url' is required if no existing manager is provided."
-            );
-        }
-
-        if (managerProp) {
-            managerRef.current = managerProp;
-        } else if (config) {
+        // If no manager was passed in, we create one from config
+        if (!managerProp) {
+            if (!config?.url) {
+                throw new Error(
+                    "useClientWebSocket error: 'url' is required if no existing manager is provided."
+                );
+            }
             managerRef.current = new ClientWebSocketManager<TIncoming, TOutgoing>({
-                url: config.url ?? "",
+                url: config.url,
                 debug: config.debug,
                 autoReconnect: config.autoReconnect,
                 reconnectIntervalMs: config.reconnectIntervalMs,
                 maxReconnectAttempts: config.maxReconnectAttempts,
                 onReconnect: config.onReconnect,
                 messageHandlers: config.messageHandlers,
+                validateIncomingMessage: config.validateIncomingMessage,
+                validateOutgoingMessage: config.validateOutgoingMessage,
                 onOpen: () => {
                     setIsOpen(true);
                     config.onOpen?.();
@@ -61,18 +68,23 @@ export function useClientWebSocket<
                 },
                 onError: config.onError,
             });
+        } else {
+            managerRef.current = managerProp;
         }
     }
 
     const manager = managerRef.current;
 
+    // On unmount, optionally disconnect
     useEffect(() => {
-        // On unmount, optionally disconnect
         return () => {
             managerRef.current?.disconnect();
         };
-    }, [manager, managerProp]);
+    }, [manager]);
 
+    /**
+     * Send a message to the server using the manager
+     */
     const sendMessage = useCallback(
         (msg: TOutgoing) => {
             manager?.sendMessage(msg);
@@ -80,9 +92,15 @@ export function useClientWebSocket<
         [manager]
     );
 
-    const disconnect = useCallback((stopReconnect = false) => {
-        manager?.disconnect(stopReconnect);
-    }, [manager]);
+    /**
+     * Manually disconnect (and optionally stop reconnect attempts)
+     */
+    const disconnect = useCallback(
+        (stopReconnect = false) => {
+            manager?.disconnect(stopReconnect);
+        },
+        [manager]
+    );
 
     return {
         manager,
