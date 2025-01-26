@@ -1,4 +1,3 @@
-// packages/backend-websocket-manager/src/adapters/file-websocket-adapter.ts
 import type {
     BackendWebSocketPersistenceAdapter,
     VersionedWebSocketData,
@@ -7,7 +6,7 @@ import type {
 /**
  * Configuration options for the FileWebSocketAdapter
  */
-export interface FileWebSocketAdapterConfig {
+export interface FileWebSocketAdapterConfig<TState> {
     /**
      * The file path where we store the JSON data.
      * Example: `my-websocket-state.json`
@@ -19,65 +18,139 @@ export interface FileWebSocketAdapterConfig {
      * Example: `./backups`
      */
     backupsDir?: string;
+
+    /**
+     * Enable debug logging
+     */
+    debug?: boolean;
+
+    /**
+     * Optional validation function for the loaded state
+     * Returns true if valid, false if invalid
+     */
+    validateState?: (state: TState) => boolean;
+
+    /**
+     * Optional function to create initial state when needed
+     * If not provided, an empty object will be used
+     */
+    createInitialState?: () => TState;
 }
 
 /**
  * Stores the entire TState (as JSON) plus the version in a single file.
- * This parallels the KV store’s FileAdapter approach, but for WebSocket state.
+ * This parallels the KV store's FileAdapter approach, but for WebSocket state.
  */
 export class FileWebSocketAdapter<TState>
     implements BackendWebSocketPersistenceAdapter<TState> {
     private filePath: string;
     private backupsDir?: string;
+    private debug: boolean;
+    private validateState?: (state: TState) => boolean;
+    private createInitialState: () => TState;
 
-    constructor(config: FileWebSocketAdapterConfig) {
+    constructor(config: FileWebSocketAdapterConfig<TState>) {
         this.filePath = config.filePath;
         this.backupsDir = config.backupsDir;
+        this.debug = config.debug ?? false;
+        this.validateState = config.validateState;
+        this.createInitialState = config.createInitialState ?? (() => ({} as TState));
     }
 
     /**
-     * Ensure the file exists (or create it). If it doesn’t exist, we’ll assume
-     * a default state of `{}` with version=0.
+     * Utility for debug logging. Only logs if debug is enabled.
+     */
+    private debugLog(...args: unknown[]): void {
+        if (this.debug) {
+            console.log("[FileWebSocketAdapter]", ...args);
+        }
+    }
+
+    /**
+     * Creates a new versioned data object with initial state
+     */
+    private createInitialData(): VersionedWebSocketData<TState> {
+        const state = this.createInitialState();
+        return { state, version: 0 };
+    }
+
+    /**
+     * Ensure the file exists (or create it). If it doesn't exist or if its contents
+     * are invalid/empty, we'll use the initial state provider.
      */
     public async init(): Promise<void> {
         try {
-            // Attempt to stat the file to see if it exists
             const file = Bun.file(this.filePath);
-            const info = await file.stat();
+            const exists = await file.exists();
+            this.debugLog("Initializing adapter with file:", this.filePath);
 
-            if (!info || !info.size) {
-                // File is empty or doesn’t exist => create with empty data
-                const initialData: VersionedWebSocketData<TState> = {
-                    state: {} as TState,
-                    version: 0,
-                };
-                await this.writeData(initialData);
+            if (!exists) {
+                this.debugLog("File doesn't exist, creating with initial state");
+                await this.writeData(this.createInitialData());
+                return;
             }
-        } catch {
-            // If any error occurs (file not found, etc.), create a fresh file
-            const initialData: VersionedWebSocketData<TState> = {
-                state: {} as TState,
-                version: 0,
-            };
-            await this.writeData(initialData);
+
+            const contents = await file.text();
+        if (!contents.trim()) {
+                this.debugLog("Empty file, creating with initial state");
+                await this.writeData(this.createInitialData());
+                return;
+            }
+
+            try {
+                const data = JSON.parse(contents) as VersionedWebSocketData<TState>;
+                
+                // Validate the state if a validator is provided
+                if (this.validateState && !this.validateState(data.state)) {
+                    this.debugLog("State validation failed, using initial state");
+                    await this.writeData(this.createInitialData());
+                    return;
+                }
+
+                this.debugLog("Successfully validated existing file contents");
+            } catch (parseErr) {
+                this.debugLog("Invalid JSON in file, using initial state:", parseErr);
+                await this.writeData(this.createInitialData());
+            }
+        } catch (error) {
+            this.debugLog("Error during initialization:", error);
+            await this.writeData(this.createInitialData());
         }
     }
 
     /**
      * Load (state + version) from the JSON file.
+     * If the file is invalid or doesn't exist, returns initial state.
      */
     public async load(): Promise<VersionedWebSocketData<TState>> {
         try {
             const file = Bun.file(this.filePath);
-            const contents = await file.text();
-            if (!contents) {
-                return { state: {} as TState, version: 0 };
+            const exists = await file.exists();
+            
+            if (!exists) {
+                this.debugLog("File doesn't exist, returning initial state");
+                return this.createInitialData();
             }
-            return JSON.parse(contents) as VersionedWebSocketData<TState>;
+
+            const contents = await file.text();
+            if (!contents.trim()) {
+                this.debugLog("Empty file, returning initial state");
+                return this.createInitialData();
+            }
+
+            const data = JSON.parse(contents) as VersionedWebSocketData<TState>;
+            
+            // Validate the state if a validator is provided
+            if (this.validateState && !this.validateState(data.state)) {
+                this.debugLog("State validation failed, returning initial state");
+                return this.createInitialData();
+            }
+
+            this.debugLog("Successfully loaded state, version:", data.version);
+            return data;
         } catch (error) {
-            // If something goes wrong, default to an empty object.
-            console.error("[FileWebSocketAdapter] Error reading file:", error);
-            return { state: {} as TState, version: 0 };
+            this.debugLog("Error loading state:", error);
+            return this.createInitialData();
         }
     }
 
@@ -85,6 +158,7 @@ export class FileWebSocketAdapter<TState>
      * Save (state + version) to the JSON file.
      */
     public async save(state: TState, version: number): Promise<void> {
+        this.debugLog("Saving state, version:", version);
         const data: VersionedWebSocketData<TState> = { state, version };
         await this.writeData(data);
     }
@@ -95,31 +169,27 @@ export class FileWebSocketAdapter<TState>
      */
     public async backup(): Promise<void> {
         if (!this.backupsDir) {
-            // No backups directory provided, so do nothing or log
-            console.warn("[FileWebSocketAdapter] No `backupsDir` specified. Skipping backup.");
+            this.debugLog("No backupsDir specified, skipping backup");
             return;
         }
 
         try {
-            // Ensure directory existence (Bun doesn’t provide a direct mkdirp yet,
-            // so for a single-level dir we do a quick check).
             await Bun.write(`${this.backupsDir}/.placeholder`, "");
 
-            // Generate a timestamp-based name
             const timestamp = Date.now();
             const backupFileName = `backup-${timestamp}.json`;
             const backupPath = `${this.backupsDir}/${backupFileName}`;
 
-            // Read current file contents
+            this.debugLog("Creating backup at:", backupPath);
+
             const mainFile = Bun.file(this.filePath);
             const data = await mainFile.arrayBuffer();
 
-            // Write the backup file
             await Bun.write(backupPath, data);
-
-            console.log(`[FileWebSocketAdapter] Backup created at ${backupPath}`);
+            this.debugLog("Backup created successfully");
         } catch (error) {
-            console.error("[FileWebSocketAdapter] Backup failed:", error);
+            this.debugLog("Backup failed:", error);
+            throw error; // Re-throw to allow error handling upstream
         }
     }
 
@@ -127,7 +197,14 @@ export class FileWebSocketAdapter<TState>
      * Helper: write the entire object as JSON to disk.
      */
     private async writeData(data: VersionedWebSocketData<TState>): Promise<void> {
-        const serialized = JSON.stringify(data, null, 2);
-        await Bun.write(this.filePath, serialized);
+        try {
+            this.debugLog("Writing data to file:", this.filePath);
+            const serialized = JSON.stringify(data, null, 2);
+            await Bun.write(this.filePath, serialized);
+            this.debugLog("Successfully wrote data");
+        } catch (error) {
+            this.debugLog("Error writing data:", error);
+            throw error; // Re-throw to allow error handling upstream
+        }
     }
 }

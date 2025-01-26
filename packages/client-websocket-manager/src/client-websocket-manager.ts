@@ -87,6 +87,19 @@ export class ClientWebSocketManager<
     private socket: WebSocket | null = null;
     private reconnectAttempts = 0;
     private reconnectTimeoutId: ReturnType<typeof setTimeout> | null = null;
+    private rawMessageListeners: Array<(data: unknown) => void> = [];
+
+    /**
+     * Allows external code to listen to every incoming (parsed) message
+     * before the built-in typed handlers run.
+     * Returns an unsubscribe function.
+     */
+    public addRawMessageListener(listener: (data: unknown) => void): () => void {
+        this.rawMessageListeners.push(listener);
+        return () => {
+            this.rawMessageListeners = this.rawMessageListeners.filter(l => l !== listener);
+        };
+    }
 
     constructor(config: ClientWebSocketManagerConfig<TIncoming, TOutgoing>) {
         this.config = config;
@@ -221,7 +234,16 @@ export class ClientWebSocketManager<
             return;
         }
 
-        // If user provided a validator, run it. Otherwise, cast as TIncoming.
+        // 1) Notify raw-message listeners first
+        this.rawMessageListeners.forEach((fn) => {
+            try {
+                fn(parsed);
+            } catch (listenerError) {
+                console.error("[ClientWebSocketManager] Error in raw message listener:", listenerError);
+            }
+        });
+
+        // 2) Then continue with optional validation and typed handlers
         let incoming: TIncoming;
         if (this.config.validateIncomingMessage) {
             try {

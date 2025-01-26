@@ -1,5 +1,4 @@
 import type { ServerWebSocket } from "bun";
-import { z } from "zod";
 
 /**
  * Base interface for all WebSocket messages (client->server or server->client).
@@ -77,6 +76,12 @@ export interface BackendWebSocketManagerHooks<TState> {
      * Called if a client fails to respond to a ping message in time.
      */
     onPingTimeout?: (ws: ServerWebSocket<any>) => Promise<void>;
+
+    /**
+     * Called when any internal error occurs in the manager. Use this to
+     * centralize your error logging or tracking.
+     */
+    onError?: (error: unknown, context?: string) => Promise<void>;
 }
 
 /**
@@ -109,9 +114,14 @@ export type WebSocketMiddleware<TMessage extends BaseMessage> = (
  */
 export interface BackendWebSocketManagerConfig<TState, TMessage extends BaseMessage> {
     /**
-     * Initial state if no adapter is provided.
+     * Initial state if no adapter is provided or if adapter load fails.
      */
     initialState?: TState;
+
+    /**
+     * A default fallback state if neither adapter nor `initialState` can provide valid data.
+     */
+    defaultState?: TState;
 
     /**
      * An array of message handlers.
@@ -124,7 +134,7 @@ export interface BackendWebSocketManagerConfig<TState, TMessage extends BaseMess
     debug?: boolean;
 
     /**
-     * Optional hooks for lifecycle events.
+     * Optional hooks for lifecycle events and error handling.
      */
     hooks?: BackendWebSocketManagerHooks<TState>;
 
@@ -139,7 +149,7 @@ export interface BackendWebSocketManagerConfig<TState, TMessage extends BaseMess
     pingTimeoutMs?: number;
 
     /**
-     * Optional function or Zod schema for validating incoming messages.
+     * Optional function or library schema for validating incoming messages.
      */
     validateMessage?: (rawMessage: unknown) => TMessage;
 

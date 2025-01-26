@@ -1,19 +1,18 @@
 import type { ServerWebSocket } from "bun";
 import type {
-  BaseMessage,
-  MessageHandler,
-  BackendWebSocketManagerConfig,
-  BackendWebSocketManagerHooks,
-  BackendWebSocketPersistenceAdapter,
-  VersionedWebSocketData,
-  WebSocketMiddleware,
+    BaseMessage,
+    MessageHandler,
+    BackendWebSocketManagerConfig,
+    BackendWebSocketManagerHooks,
+    BackendWebSocketPersistenceAdapter,
+    VersionedWebSocketData,
+    WebSocketMiddleware,
 } from "./backend-websocket-types";
-
 
 /**
  * A generic WebSocket manager that can handle a variety of states and messages.
- * 
- * @template TState - The shape of your application's state
+ *
+ * @template TState   - The shape of your application's state
  * @template TMessage - The union of all message types that may be handled
  */
 export class BackendWebSocketManager<
@@ -35,7 +34,7 @@ export class BackendWebSocketManager<
      */
     private lastPongTimes: Map<ServerWebSocket<any>, number>;
 
-    // New state management
+    // State management
     private state: TState;
     private version: number;
     private adapter?: BackendWebSocketPersistenceAdapter<TState>;
@@ -51,14 +50,24 @@ export class BackendWebSocketManager<
         // Initialize versioning
         this.version = config.enableVersioning ? 0 : -1;
         this.adapter = config.adapter;
-        this.state = config.initialState as TState;
 
-        if (this.config.debug) {
-            console.log("[WebSocketManager] Initialized with debug = true");
-        }
+        // Decide initial state with fallback
+        // If initialState is defined, use that, otherwise use config.defaultState,
+        // otherwise an empty object casted to TState
+        this.state =
+            config.initialState ??
+            config.defaultState ??
+            ({} as TState);
+
+        this.debugLog(
+            "[WebSocketManager] Initializing with state:",
+            this.state
+        );
 
         // Initialize adapter and load state
-        void this.init();
+        void this.init().then(() => {
+            this.debugLog("[WebSocketManager] Adapter initialization complete.");
+        });
 
         // Start heartbeat if configured
         if (config.heartbeatIntervalMs && config.heartbeatIntervalMs > 0) {
@@ -68,6 +77,27 @@ export class BackendWebSocketManager<
         // Start sync interval if configured
         if (config.syncIntervalMs && config.syncIntervalMs > 0) {
             this.startSyncInterval(config.syncIntervalMs);
+        }
+    }
+
+    /**
+     * Utility for debug logging. Only logs if config.debug is true.
+     */
+    private debugLog(...args: unknown[]): void {
+        if (this.config.debug) {
+            console.log(...args);
+        }
+    }
+
+    /**
+     * Central place to handle/report errors. If `onError` is provided, it will be used;
+     * otherwise falls back to console.error.
+     */
+    private async reportError(error: unknown, context: string): Promise<void> {
+        if (this.config.hooks?.onError) {
+            await this.config.hooks.onError(error, context);
+        } else {
+            console.error(`${context}`, error);
         }
     }
 
@@ -110,9 +140,7 @@ export class BackendWebSocketManager<
                     const lastPong = this.lastPongTimes.get(ws) || 0;
                     const now = Date.now();
                     if (now - lastPong > this.config.pingTimeoutMs!) {
-                        if (this.config.debug) {
-                            console.warn("[WebSocketManager] Ping timeout. Closing...");
-                        }
+                        this.debugLog("[WebSocketManager] Ping timeout. Closing connection...");
                         if (this.config.hooks?.onPingTimeout) {
                             await this.config.hooks.onPingTimeout(ws);
                         }
@@ -121,9 +149,7 @@ export class BackendWebSocketManager<
                 }, this.config.pingTimeoutMs);
             }
         } catch (error) {
-            if (this.config.debug) {
-                console.error("[WebSocketManager] Failed to send ping:", error);
-            }
+            await this.reportError(error, "[WebSocketManager] Failed to send ping:");
         }
     }
 
@@ -144,24 +170,26 @@ export class BackendWebSocketManager<
         this.connections.add(ws);
         this.lastPongTimes.set(ws, Date.now());
 
-        if (this.config.debug) {
-            console.log("[WebSocketManager] New connection opened.");
-        }
+        this.debugLog("[WebSocketManager] New connection opened.");
 
         // Call onConnect hook if provided
         if (this.config.hooks?.onConnect) {
-            await this.config.hooks.onConnect(ws);
+            try {
+                await this.config.hooks.onConnect(ws);
+            } catch (error) {
+                await this.reportError(error, "[WebSocketManager] Error in onConnect hook:");
+            }
         }
 
         // Send the current state to the new client
         try {
             const message = {
                 type: "initial_state",
-                data: this.state
+                data: this.state,
             };
             ws.send(JSON.stringify(message));
         } catch (error) {
-            console.error("[WebSocketManager] Error sending initial state:", error);
+            await this.reportError(error, "[WebSocketManager] Error sending initial state:");
             ws.close();
         }
     }
@@ -173,32 +201,37 @@ export class BackendWebSocketManager<
         this.connections.delete(ws);
         this.lastPongTimes.delete(ws);
 
-        if (this.config.debug) {
-            console.log("[WebSocketManager] Connection closed.");
-        }
+        this.debugLog("[WebSocketManager] Connection closed.");
 
         // Call onDisconnect hook if provided
         if (this.config.hooks?.onDisconnect) {
-            await this.config.hooks.onDisconnect(ws);
+            try {
+                await this.config.hooks.onDisconnect(ws);
+            } catch (error) {
+                await this.reportError(error, "[WebSocketManager] Error in onDisconnect hook:");
+            }
         }
     }
 
     /**
      * Handle any raw incoming messages from clients.
      */
-    public async handleMessage(ws: ServerWebSocket<any>, rawMessage: string): Promise<void> {
-        if (this.config.debug) {
-            console.log("[WebSocketManager] Received raw message:", rawMessage);
-        }
+    public async handleMessage(
+        ws: ServerWebSocket<any>,
+        rawMessage: string
+    ): Promise<void> {
+        this.debugLog("[WebSocketManager] Received raw message:", rawMessage);
 
-        // Special case for "pong": we track that we've received a pong for heartbeat
+        // Special case for "pong": track the pong for heartbeat
         if (rawMessage === "pong") {
-            if (this.config.debug) {
-                console.log("[WebSocketManager] Received pong");
-            }
+            this.debugLog("[WebSocketManager] Received pong");
             this.lastPongTimes.set(ws, Date.now());
             if (this.config.hooks?.onPong) {
-                await this.config.hooks.onPong(ws);
+                try {
+                    await this.config.hooks.onPong(ws);
+                } catch (error) {
+                    await this.reportError(error, "[WebSocketManager] Error in onPong hook:");
+                }
             }
             return;
         }
@@ -210,7 +243,7 @@ export class BackendWebSocketManager<
                 ? this.config.validateMessage(JSON.parse(rawMessage))
                 : (JSON.parse(rawMessage) as TMessage);
         } catch (error) {
-            console.error("[WebSocketManager] Failed to parse or validate message:", error);
+            await this.reportError(error, "[WebSocketManager] Failed to parse/validate message:");
             return;
         }
 
@@ -219,7 +252,7 @@ export class BackendWebSocketManager<
             try {
                 parsed = await mw(parsed);
             } catch (middlewareError) {
-                console.error("[WebSocketManager] Middleware error:", middlewareError);
+                await this.reportError(middlewareError, "[WebSocketManager] Middleware error:");
                 return;
             }
         }
@@ -227,16 +260,13 @@ export class BackendWebSocketManager<
         // Find a handler that matches the parsed type
         const handler = this.config.messageHandlers.find((h) => h.type === parsed.type);
         if (!handler) {
-            if (this.config.debug) {
-                console.warn("[WebSocketManager] No handler found for message type:", parsed.type);
-            }
+            this.debugLog("[WebSocketManager] No handler found for message type:", parsed.type);
             return;
         }
 
         // Run the handler with internal state management
         try {
             const oldState = this.state;
-
             await handler.handle(
                 ws,
                 parsed,
@@ -246,11 +276,17 @@ export class BackendWebSocketManager<
                         this.version++;
                     }
                     this.state = updated;
-                    
+
                     // If changed, call onStateChange if provided
-                    if (this.config.hooks?.onStateChange && 
-                        JSON.stringify(oldState) !== JSON.stringify(updated)) {
-                        await this.config.hooks.onStateChange(oldState, updated);
+                    if (
+                        this.config.hooks?.onStateChange &&
+                        JSON.stringify(oldState) !== JSON.stringify(updated)
+                    ) {
+                        try {
+                            await this.config.hooks.onStateChange(oldState, updated);
+                        } catch (hookError) {
+                            await this.reportError(hookError, "[WebSocketManager] Error in onStateChange hook:");
+                        }
                     }
 
                     // Sync if we have an adapter
@@ -258,7 +294,7 @@ export class BackendWebSocketManager<
                 }
             );
         } catch (error) {
-            console.error("[WebSocketManager] Error in handler:", error);
+            await this.reportError(error, "[WebSocketManager] Error in message handler:");
         }
     }
 
@@ -269,7 +305,7 @@ export class BackendWebSocketManager<
         try {
             const message = {
                 type: "state_update",
-                data: this.state
+                data: this.state,
             };
             const serialized = JSON.stringify(message);
 
@@ -282,21 +318,17 @@ export class BackendWebSocketManager<
                     successCount++;
                 } catch (error) {
                     failCount++;
-                    if (this.config.debug) {
-                        console.error("[WebSocketManager] Failed to send state update:", error);
-                    }
+                    await this.reportError(error, "[WebSocketManager] Failed to send state update:");
                 }
             }
 
-            if (this.config.debug) {
-                console.log("[WebSocketManager] Broadcast complete:", {
-                    totalConnections: this.connections.size,
-                    successCount,
-                    failCount
-                });
-            }
+            this.debugLog("[WebSocketManager] Broadcast complete:", {
+                totalConnections: this.connections.size,
+                successCount,
+                failCount,
+            });
         } catch (error) {
-            console.error("[WebSocketManager] Broadcast error:", error);
+            await this.reportError(error, "[WebSocketManager] Broadcast error:");
         }
     }
 
@@ -305,13 +337,36 @@ export class BackendWebSocketManager<
      */
     private async init(): Promise<void> {
         if (!this.adapter) return;
-        
-        await this.adapter.init();
-        const data = await this.adapter.load();
-        this.state = data.state;
-        
-        if (this.config.enableVersioning && typeof data.version === "number") {
-            this.version = data.version;
+
+        try {
+            await this.adapter.init();
+            const data = await this.adapter.load();
+
+            // Validate the data to ensure it has state/version
+            if (
+                !data ||
+                typeof data !== "object" ||
+                data.state === undefined ||
+                data.version === undefined
+            ) {
+                this.debugLog("[WebSocketManager] Adapter returned invalid data. Using fallback state.");
+                this.state = this.config.defaultState ?? ({} as TState);
+                if (this.version >= 0) {
+                    this.version = 0;
+                }
+                return;
+            }
+
+            this.state = data.state;
+            if (this.config.enableVersioning && typeof data.version === "number") {
+                this.version = data.version;
+            }
+        } catch (error) {
+            await this.reportError(error, "[WebSocketManager] Error initializing adapter; using fallback state:");
+            this.state = this.config.defaultState ?? ({} as TState);
+            if (this.version >= 0) {
+                this.version = 0;
+            }
         }
     }
 
@@ -332,10 +387,14 @@ export class BackendWebSocketManager<
      */
     public async sync(): Promise<void> {
         if (!this.adapter) return;
-        
-        await this.adapter.save(this.state, this.version);
-        if (this.config.hooks?.onSync) {
-            await this.config.hooks.onSync(this.state, this.version);
+
+        try {
+            await this.adapter.save(this.state, this.version);
+            if (this.config.hooks?.onSync) {
+                await this.config.hooks.onSync(this.state, this.version);
+            }
+        } catch (error) {
+            await this.reportError(error, "[WebSocketManager] Error syncing state:");
         }
     }
 
@@ -344,10 +403,14 @@ export class BackendWebSocketManager<
      */
     public async createBackup(): Promise<void> {
         if (!this.adapter?.backup) return;
-        
-        await this.adapter.backup();
-        if (this.config.hooks?.onBackup) {
-            await this.config.hooks.onBackup(Date.now(), this.version);
+
+        try {
+            await this.adapter.backup();
+            if (this.config.hooks?.onBackup) {
+                await this.config.hooks.onBackup(Date.now(), this.version);
+            }
+        } catch (error) {
+            await this.reportError(error, "[WebSocketManager] Error creating backup:");
         }
     }
 
@@ -363,6 +426,40 @@ export class BackendWebSocketManager<
      */
     public getState(): TState {
         return this.state;
+    }
+
+    /**
+     * Force-set a new state and optionally broadcast the update.
+     */
+    public async setState(newState: TState, broadcast = false): Promise<void> {
+        const oldState = this.state;
+
+        // If versioning is enabled, increment version
+        if (this.version >= 0) {
+            this.version++;
+        }
+
+        this.state = newState;
+
+        // If changed, call onStateChange
+        if (
+            this.config.hooks?.onStateChange &&
+            JSON.stringify(oldState) !== JSON.stringify(newState)
+        ) {
+            try {
+                await this.config.hooks.onStateChange(oldState, newState);
+            } catch (error) {
+                await this.reportError(error, "[WebSocketManager] Error in onStateChange hook (setState):");
+            }
+        }
+
+        // Persist updated state to adapter
+        await this.sync();
+
+        // Optional: broadcast new state to all connections
+        if (broadcast) {
+            await this.broadcastState();
+        }
     }
 
     /**
