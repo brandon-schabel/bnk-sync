@@ -1,6 +1,6 @@
 # **BNK Sync Engine**
 
-A **pluggable**, **type-safe**, and **performance-focused** suite of TypeScript libraries built on **Bun** for managing WebSocket connections. BNK Sync Engine is split into three main packages, each addressing a different part of a real-time stack:
+A **pluggable**, **type-safe**, and **performance-focused** suite of TypeScript libraries built on **Bun** for syncing server and client using websockets. BNK Sync Engine is split into three main packages, each addressing a different part of a real-time stack:
 
 - [`@bnk/sync-engine`](#bnksync-engine) – Server-side WebSocket manager for Bun.  
 - [`@bnk/sync-client`](#bnksync-client) – Client-side WebSocket manager for browsers (or other WebSocket environments).  
