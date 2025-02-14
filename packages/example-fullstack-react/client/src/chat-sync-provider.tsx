@@ -1,12 +1,12 @@
 import React, { useContext, useMemo, useState } from "react";
-import { ClientWebSocketManager, ClientWebSocketManagerConfig } from '@bnk/client-websocket-manager'
+import { SyncClientManager, SyncClientManagerConfig } from '@bnk/sync-client'
 import {
     IncomingServerMessage,
     OutgoingClientMessage,
 } from "shared-types";
-import { useClientWebSocket } from "@bnk/react-websocket-manager";
+import { useSyncClient } from "@bnk/sync-react";
 
-export type GlobalWebsocketManagerConfig = ClientWebSocketManagerConfig<IncomingServerMessage, OutgoingClientMessage>
+export type GlobalSyncManagerConfig = SyncClientManagerConfig<IncomingServerMessage, OutgoingClientMessage>
 
 
 /**
@@ -14,14 +14,14 @@ export type GlobalWebsocketManagerConfig = ClientWebSocketManagerConfig<Incoming
  * either an `initial_state` or `state_update` message, 
  * each containing { messageLog: string[] } data.
  */
-export function ChatWebSocketProvider({ children }: { children: React.ReactNode }) {
+export function ChatSyncProvider({ children }: { children: React.ReactNode }) {
     const [messageLog, setMessageLog] = useState<string[]>([]);
 
     /**
      * This type ensures we only allow known message types:
      * "initial_state" | "state_update"
      */
-    const messageHandlers: GlobalWebsocketManagerConfig['messageHandlers'] = useMemo(() => ({
+    const messageHandlers: GlobalSyncManagerConfig['messageHandlers'] = useMemo(() => ({
 
         // On initial_state, the server provides the full ChatAppState
         initial_state: (msg) => {
@@ -37,7 +37,7 @@ export function ChatWebSocketProvider({ children }: { children: React.ReactNode 
 
 
     // Our config object, passed to WebSocketClientProvider
-    const wsConfig: GlobalWebsocketManagerConfig = {
+    const wsConfig: GlobalSyncManagerConfig = {
         url: "ws://localhost:3007/ws",
         debug: true,
         messageHandlers,
@@ -52,7 +52,7 @@ export function ChatWebSocketProvider({ children }: { children: React.ReactNode 
         },
     };
 
-    const { sendMessage, isOpen, disconnect, manager } = useClientWebSocket<IncomingServerMessage, OutgoingClientMessage>({ config: wsConfig });
+    const { sendMessage, isOpen, disconnect, manager } = useSyncClient<IncomingServerMessage, OutgoingClientMessage>({ config: wsConfig });
 
 
     /**
@@ -75,7 +75,7 @@ interface IMessageLogContext {
     sendMessage: (msg: OutgoingClientMessage) => void;
     isOpen: boolean;
     disconnect: () => void;
-    manager: ClientWebSocketManager<IncomingServerMessage, OutgoingClientMessage> | null
+    manager: SyncClientManager<IncomingServerMessage, OutgoingClientMessage> | null
 }
 export const MessageLogContext = React.createContext<IMessageLogContext>({
     messageLog: [],

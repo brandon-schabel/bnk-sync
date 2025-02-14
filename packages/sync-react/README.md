@@ -1,4 +1,4 @@
-# **@bnk/react-websocket-manager**
+# **@bnk/sync-react**
 
 A modern, type-safe, and performant React WebSocket interface built entirely on Bun. This library streamlines WebSocket integration in React applications, providing **pluggable** and **composable** APIs with zero external dependencies besides React. Leverage the power of Bun’s native WebSocket performance while enjoying a fully typed, developer-friendly experience.
 
@@ -11,10 +11,10 @@ A modern, type-safe, and performant React WebSocket interface built entirely on 
 3. [Usage Examples](#usage-examples)  
    - [Basic React Usage](#basic-react-usage)  
    - [Using the Provided Hook](#using-the-provided-hook)  
-   - [Fullstack Integration With @bnk/websocket-manager](#fullstack-integration-with-bnkwebsocket-manager)  
+   - [Fullstack Integration With @bnk/sync-engine](#fullstack-integration-with-bnksync-engine)  
 4. [API Documentation](#api-documentation)  
    - [Types](#types)  
-   - [ClientWebSocketManager](#clientwebsocketmanager)  
+   - [SyncClientManager](#SyncClientManager)  
    - [useClientWebSocket](#useclientwebsocket)  
 5. [Performance Notes](#performance-notes)  
 6. [Configuration & Customization](#configuration--customization)  
@@ -26,7 +26,7 @@ A modern, type-safe, and performant React WebSocket interface built entirely on 
 
 ## **Introduction**
 
-`@bnk/react-websocket-manager` is a React-specific wrapper around the core client WebSocket logic from [`@bnk/client-websocket-manager`](https://www.npmjs.com/package/@bnk/client-websocket-manager). Its primary goal is to:
+`@bnk/sync-react` is a React-specific wrapper around the core client WebSocket logic from [`@bnk/sync-client`](https://www.npmjs.com/package/@bnk/sync-client). Its primary goal is to:
 
 - Provide a **modern**, **type-safe** interface for WebSockets in React applications.  
 - Deliver **high performance** by leveraging **Bun**’s native WebSocket.  
@@ -34,7 +34,7 @@ A modern, type-safe, and performant React WebSocket interface built entirely on 
 - Offer **minimal** external dependencies (none besides React).  
 - Ensure an ergonomic developer experience, with advanced TypeScript usage (generics, mapped types, intersection types, etc.).
 
-This library pairs seamlessly with [`@bnk/websocket-manager`](https://www.npmjs.com/package/@bnk/websocket-manager) on the backend, letting you build a complete fullstack WebSocket solution in a type-safe manner.
+This library pairs seamlessly with [`@bnk/sync-engine`](https://www.npmjs.com/package/@bnk/sync-engine) on the backend, letting you build a complete fullstack WebSocket solution in a type-safe manner.
 
 ---
 
@@ -43,19 +43,19 @@ This library pairs seamlessly with [`@bnk/websocket-manager`](https://www.npmjs.
 Using Bun:
 
 ```bash
-bun add @bnk/react-websocket-manager
+bun add @bnk/sync-react
 ```
 
 Using npm:
 
 ```bash
-npm install @bnk/react-websocket-manager
+npm install @bnk/sync-react
 ```
 
 Using yarn:
 
 ```bash
-yarn add @bnk/react-websocket-manager
+yarn add @bnk/sync-react
 ```
 
 ---
@@ -68,7 +68,7 @@ Below is a minimal setup in a React application. This example assumes you have a
 
 ```tsx
 import React from "react";
-import { useClientWebSocket } from "@bnk/react-websocket-manager";
+import { useClientWebSocket } from "@bnk/sync-react";
 
 function App() {
   const { isOpen, sendMessage } = useClientWebSocket({
@@ -122,21 +122,21 @@ The main hook is `useClientWebSocket`. It sets up a WebSocket manager internally
 - `isOpen` – A boolean indicating if the WebSocket is currently open.  
 - `sendMessage` – A function to send typed messages to the server.  
 - `disconnect` – A function to gracefully close the WebSocket.  
-- `manager` – The underlying `ClientWebSocketManager` instance, if needed for advanced usage.
+- `manager` – The underlying `SyncClientManager` instance, if needed for advanced usage.
 
 **Example With an Existing Manager**  
-If you already have a `ClientWebSocketManager` instance (for instance, if you create it elsewhere and want to pass it down), you can just inject it:
+If you already have a `SyncClientManager` instance (for instance, if you create it elsewhere and want to pass it down), you can just inject it:
 
 ```tsx
 import React, { useState } from "react";
 import {
-  ClientWebSocketManager,
+  SyncClientManager,
   type BaseServerMessage,
   type BaseClientMessage,
-} from "@bnk/client-websocket-manager";
-import { useClientWebSocket } from "@bnk/react-websocket-manager";
+} from "@bnk/sync-client";
+import { useClientWebSocket } from "@bnk/sync-react";
 
-const existingManager = new ClientWebSocketManager<BaseServerMessage, BaseClientMessage>({
+const existingManager = new SyncClientManager<BaseServerMessage, BaseClientMessage>({
   url: "ws://localhost:3007/ws",
   debug: true,
   onOpen: () => console.log("Existing Manager Open"),
@@ -165,20 +165,20 @@ function MyComponent() {
 export default MyComponent;
 ```
 
-### **Fullstack Integration With `@bnk/websocket-manager`**
+### **Fullstack Integration With `@bnk/sync-engine`**
 
 Below is an outline demonstrating how you might integrate the React library on the frontend with the Bun-based WebSocket manager on the backend.
 
-#### Backend (Bun + `@bnk/websocket-manager`)
+#### Backend (Bun + `@bnk/sync-engine`)
 
 ```ts
 // server.ts
 import { serve } from "bun";
 import {
-  BackendWebSocketManager,
+  SyncEngine,
   type BaseMessage,
   type MessageHandler
-} from "@bnk/websocket-manager";
+} from "@bnk/sync-engine";
 
 // Example state and message definitions
 interface MyState {
@@ -209,7 +209,7 @@ async function setState(newState: MyState): Promise<void> {
   currentState = structuredClone(newState);
 }
 
-const manager = new BackendWebSocketManager<MyState, ChatMessage>({
+const manager = new SyncEngine<MyState, ChatMessage>({
   getState,
   setState,
   messageHandlers: [chatHandler],
@@ -241,12 +241,12 @@ serve({
 });
 ```
 
-#### Frontend (React + `@bnk/react-websocket-manager`)
+#### Frontend (React + `@bnk/sync-react`)
 
 ```tsx
 // App.tsx
 import React from "react";
-import { useClientWebSocket } from "@bnk/react-websocket-manager";
+import { useClientWebSocket } from "@bnk/sync-react";
 
 function App() {
   const { isOpen, sendMessage } = useClientWebSocket({
@@ -309,7 +309,7 @@ export interface BaseServerMessage {
 }
 ```
 
-### **`ClientWebSocketManager`**
+### **`SyncClientManager`**
 
 A generic class that manages a single WebSocket connection client-side. It handles:
 
@@ -320,7 +320,7 @@ A generic class that manages a single WebSocket connection client-side. It handl
 **Constructor**  
 
 ```ts
-constructor(config: ClientWebSocketManagerConfig<TIncoming, TOutgoing>)
+constructor(config: SyncClientManagerConfig<TIncoming, TOutgoing>)
 ```
 
 | Parameter | Description |
@@ -335,7 +335,7 @@ constructor(config: ClientWebSocketManagerConfig<TIncoming, TOutgoing>)
 **Example**  
 
 ```ts
-const manager = new ClientWebSocketManager({
+const manager = new SyncClientManager({
   url: "ws://localhost:3007/ws",
   debug: true,
   messageHandlers: {
@@ -348,13 +348,13 @@ const manager = new ClientWebSocketManager({
 
 ### **`useClientWebSocket`**
 
-A React hook that abstracts the `ClientWebSocketManager`. Returns a simple interface to send messages and track connection state in React.
+A React hook that abstracts the `SyncClientManager`. Returns a simple interface to send messages and track connection state in React.
 
 ```ts
 function useClientWebSocket<TIncoming extends BaseServerMessage, TOutgoing extends BaseClientMessage>(
   config: UseClientWebSocketConfig<TIncoming, TOutgoing>
 ): {
-  manager: ClientWebSocketManager<TIncoming, TOutgoing> | null;
+  manager: SyncClientManager<TIncoming, TOutgoing> | null;
   isOpen: boolean;
   sendMessage: (msg: TOutgoing) => void;
   disconnect: () => void;
@@ -363,7 +363,7 @@ function useClientWebSocket<TIncoming extends BaseServerMessage, TOutgoing exten
 
 | Return Key        | Description                                                        |
 | ----------------- | ------------------------------------------------------------------ |
-| `manager`         | The internal `ClientWebSocketManager` instance.                    |
+| `manager`         | The internal `SyncClientManager` instance.                    |
 | `isOpen`          | A `boolean` indicating if the WebSocket is connected (OPEN).       |
 | `sendMessage`     | A function to send typed messages to the server.                   |
 | `disconnect`      | A function to gracefully disconnect the WebSocket.                |
@@ -382,7 +382,7 @@ function useClientWebSocket<TIncoming extends BaseServerMessage, TOutgoing exten
 
 - Pass a **`debug`** flag to enable logging.  
 - Provide your own `messageHandlers` to gracefully process server messages by **type**.  
-- If you have multiple WebSockets or special domain logic, you can **reuse** the `ClientWebSocketManager` instance and pass it to `useClientWebSocket`.
+- If you have multiple WebSockets or special domain logic, you can **reuse** the `SyncClientManager` instance and pass it to `useClientWebSocket`.
 
 ---
 
@@ -417,21 +417,21 @@ Contributions are welcome! Please:
 
 ## **License**
 
-`@bnk/react-websocket-manager` is open-source software licensed under the [MIT License](LICENSE).  
+`@bnk/sync-react` is open-source software licensed under the [MIT License](LICENSE).  
 
 Enjoy building real-time React apps powered by Bun! For questions, suggestions, or assistance, feel free to open an issue or submit a PR.
 
-# BNK WebSocket Manager
+# BNK Sync Engine Manager
 
 A lean yet powerful suite of TypeScript libraries built on **Bun** to manage WebSocket connections in a highly modular, pluggable, and type-safe way. This repository contains three key packages:
 
-- **@bnk/backend-websocket-manager**  
+- **@bnk/sync-engine**  
   A server-side WebSocket manager, ideal for handling stateful or stateless WebSocket connections, message dispatch, heartbeat intervals, and more.  
 
-- **@bnk/client-websocket-manager**  
+- **@bnk/sync-client**  
   A flexible client-side WebSocket manager for browser or other WebSocket clients.  
 
-- **@bnk/react-websocket-manager**  
+- **@bnk/sync-react**  
   A React-friendly wrapper around the client manager, providing a custom hook and simple context for managing WebSocket connections within React apps.
 
 All three packages are designed to be fast, **minimize external dependencies**, and rely on Bun’s native capabilities whenever possible. Written entirely in **TypeScript**, they leverage advanced TS features like generics, mapped types, intersection types, and well-defined interfaces for maximum **type safety**.
@@ -443,9 +443,9 @@ All three packages are designed to be fast, **minimize external dependencies**, 
 1. [Introduction](#introduction)  
 2. [Installation](#installation)  
 3. [Usage Examples](#usage-examples)  
-   1. [Server-Side (backend-websocket-manager)](#server-side-backend-websocket-manager)  
-   2. [Client-Side (client-websocket-manager)](#client-side-client-websocket-manager)  
-   3. [React Usage (react-websocket-manager)](#react-usage-react-websocket-manager)  
+   1. [Server-Side (sync-engine)](#server-side-sync-engine)  
+   2. [Client-Side (sync-client)](#client-side-sync-client)  
+   3. [React Usage (sync-react)](#react-usage-sync-react)  
 4. [API Documentation](#api-documentation)  
 5. [Performance Notes](#performance-notes)  
 6. [Configuration & Customization](#configuration--customization)  
@@ -457,7 +457,7 @@ All three packages are designed to be fast, **minimize external dependencies**, 
 
 ## Introduction
 
-**BNK WebSocket Manager** is a small yet focused library that provides a powerful, pluggable architecture for managing WebSocket connections. Key features include:
+**BNK Sync Engine Manager** is a small yet focused library that provides a powerful, pluggable architecture for managing WebSocket connections. Key features include:
 
 - **Lean & Fast**  
   Built on Bun with zero or minimal external dependencies for high performance.  
@@ -478,23 +478,23 @@ With **Bun**, you can install any or all packages in this monorepo:
 
 ```bash
 # Install the server-side manager
-bun add @bnk/backend-websocket-manager
+bun add @bnk/sync-engine
 
 # Install the client-side manager
-bun add @bnk/client-websocket-manager
+bun add @bnk/sync-client
 
 # Install the React hook & provider
-bun add @bnk/react-websocket-manager
+bun add @bnk/sync-react
 ```
 
 Optionally, you could also install with npm or yarn if you are not exclusively using Bun:
 
 ```bash
 # Using npm
-npm install @bnk/backend-websocket-manager @bnk/client-websocket-manager @bnk/react-websocket-manager
+npm install @bnk/sync-engine @bnk/sync-client @bnk/sync-react
 
 # Using yarn
-yarn add @bnk/backend-websocket-manager @bnk/client-websocket-manager @bnk/react-websocket-manager
+yarn add @bnk/sync-engine @bnk/sync-client @bnk/sync-react
 ```
 
 ---
@@ -503,17 +503,17 @@ yarn add @bnk/backend-websocket-manager @bnk/client-websocket-manager @bnk/react
 
 Below are concise usage examples demonstrating how these packages can be plugged into your application. For more details and advanced usage, see the [API Documentation](#api-documentation).
 
-### Server-Side (@bnk/backend-websocket-manager)
+### Server-Side (@bnk/sync-engine)
 
-**@bnk/backend-websocket-manager** gives you a powerful server-side manager that handles message parsing, state management, heartbeat intervals, and more. Here’s a minimal example using Bun’s native `serve`:
+**@bnk/sync-engine** gives you a powerful server-side manager that handles message parsing, state management, heartbeat intervals, and more. Here’s a minimal example using Bun’s native `serve`:
 
 ```ts
 import { serve } from "bun";
 import {
-  BackendWebSocketManager,
+  SyncEngine,
   type BaseMessage,
   type MessageHandler
-} from "@bnk/backend-websocket-manager";
+} from "@bnk/sync-engine";
 
 interface MyAppState {
   counter: number;
@@ -548,7 +548,7 @@ async function setState(newState: MyAppState): Promise<void> {
   currentState = structuredClone(newState);
 }
 
-const manager = new BackendWebSocketManager<MyAppState, IncrementMessage>({
+const manager = new SyncEngine<MyAppState, IncrementMessage>({
   getState,
   setState,
   messageHandlers: [incrementHandler],
@@ -584,17 +584,17 @@ serve({
 console.log("Server running at http://localhost:3005");
 ```
 
-### Client-Side (@bnk/client-websocket-manager)
+### Client-Side (@bnk/sync-client)
 
-**@bnk/client-websocket-manager** provides a lightweight WebSocket manager for the browser (or other WebSocket-enabled environments). It automatically handles connecting, disconnecting, and dispatching messages based on “type”.
+**@bnk/sync-client** provides a lightweight WebSocket manager for the browser (or other WebSocket-enabled environments). It automatically handles connecting, disconnecting, and dispatching messages based on “type”.
 
 ```ts
 import {
-  ClientWebSocketManager,
-  type ClientWebSocketManagerConfig,
+  SyncClientManager,
+  type SyncClientManagerConfig,
   type BaseServerMessage,
   type BaseClientMessage,
-} from "@bnk/client-websocket-manager";
+} from "@bnk/sync-client";
 
 interface IncrementClientMsg extends BaseClientMessage {
   type: "increment";
@@ -607,7 +607,7 @@ interface StateUpdateServerMsg extends BaseServerMessage {
 }
 
 // Example usage in vanilla JS/TS (no React):
-const config: ClientWebSocketManagerConfig<StateUpdateServerMsg, IncrementClientMsg> = {
+const config: SyncClientManagerConfig<StateUpdateServerMsg, IncrementClientMsg> = {
   url: "ws://localhost:3005/ws",
   debug: true,
   onOpen: () => console.log("Connected!"),
@@ -620,7 +620,7 @@ const config: ClientWebSocketManagerConfig<StateUpdateServerMsg, IncrementClient
 };
 
 // Instantiate
-const clientManager = new ClientWebSocketManager(config);
+const clientManager = new SyncClientManager(config);
 
 // Send a typed message
 clientManager.sendMessage({
@@ -632,17 +632,17 @@ clientManager.sendMessage({
 clientManager.disconnect();
 ```
 
-### React Usage (@bnk/react-websocket-manager)
+### React Usage (@bnk/sync-react)
 
-**@bnk/react-websocket-manager** wraps the client manager in a React hook and context. This simplifies usage in function components.
+**@bnk/sync-react** wraps the client manager in a React hook and context. This simplifies usage in function components.
 
 ```tsx
 import React from "react";
-import { useClientWebSocket } from "@bnk/react-websocket-manager";
+import { useClientWebSocket } from "@bnk/sync-react";
 import type {
   BaseClientMessage,
   BaseServerMessage,
-} from "@bnk/client-websocket-manager";
+} from "@bnk/sync-client";
 
 interface IncrementMsg extends BaseClientMessage {
   type: "increment";
@@ -685,22 +685,22 @@ export function CounterComponent() {
 
 ## API Documentation
 
-### **@bnk/backend-websocket-manager**
+### **@bnk/sync-engine**
 
-- **`BackendWebSocketManager<TState, TMessage>`**  
+- **`SyncEngine<TState, TMessage>`**  
   A server-side WebSocket manager with extensive lifecycle hooks.  
-  - **`constructor(config: BackendWebSocketManagerConfig<TState, TMessage>)`**  
+  - **`constructor(config: SyncEngineConfig<TState, TMessage>)`**  
   - **`handleOpen(ws: ServerWebSocket<any>): Promise<void>`**  
   - **`handleClose(ws: ServerWebSocket<any>): Promise<void>`**  
   - **`handleMessage(ws: ServerWebSocket<any>, rawMessage: string): Promise<void>`**  
   - **`broadcastState(): Promise<void>`**  
 
-- **`BackendWebSocketManagerConfig<TState, TMessage>`**  
+- **`SyncEngineConfig<TState, TMessage>`**  
   - **`getState: () => Promise<TState>`**  
   - **`setState: (state: TState) => Promise<void>`**  
   - **`messageHandlers: Array<MessageHandler<TState, TMessage>>`**  
   - **`debug?: boolean`**  
-  - **`hooks?: BackendWebSocketManagerHooks<TState>`**  
+  - **`hooks?: SyncEngineHooks<TState>`**  
   - **`heartbeatIntervalMs?: number`**  
   - **`pingTimeoutMs?: number`**  
 
@@ -708,15 +708,15 @@ export function CounterComponent() {
   - **`type: TMessage["type"]`**  
   - **`handle: (ws, message, getState, setState) => Promise<void>`**  
 
-### **@bnk/client-websocket-manager**
+### **@bnk/sync-client**
 
-- **`ClientWebSocketManager<TIncoming, TOutgoing>`**  
+- **`SyncClientManager<TIncoming, TOutgoing>`**  
   A client-side manager for typed WebSocket messages.  
-  - **`constructor(config: ClientWebSocketManagerConfig<TIncoming, TOutgoing>)`**  
+  - **`constructor(config: SyncClientManagerConfig<TIncoming, TOutgoing>)`**  
   - **`sendMessage(msg: TOutgoing): void`**  
   - **`disconnect(): void`**  
 
-- **`ClientWebSocketManagerConfig<TIncoming, TOutgoing>`**  
+- **`SyncClientManagerConfig<TIncoming, TOutgoing>`**  
   - **`url: string`**  
   - **`debug?: boolean`**  
   - **`onOpen?: () => void`**  
@@ -724,14 +724,14 @@ export function CounterComponent() {
   - **`onError?: (event: Event) => void`**  
   - **`messageHandlers?: Record<TIncoming["type"], (msg) => void>`**  
 
-### **@bnk/react-websocket-manager**
+### **@bnk/sync-react**
 
 - **`useClientWebSocket(config: UseClientWebSocketConfig<TIncoming, TOutgoing>)`**  
   - Returns `{ manager, isOpen, sendMessage, disconnect }`.
 
 - **`UseClientWebSocketConfig<TIncoming, TOutgoing>`**  
-  - **`manager?: ClientWebSocketManager<TIncoming, TOutgoing>`**  
-  - **`config?: Partial<ClientWebSocketManagerConfig<TIncoming, TOutgoing>>`**  
+  - **`manager?: SyncClientManager<TIncoming, TOutgoing>`**  
+  - **`config?: Partial<SyncClientManagerConfig<TIncoming, TOutgoing>>`**  
 
 ---
 
@@ -781,4 +781,4 @@ This repository is released under the **MIT License**. See the [LICENSE](LICENSE
 
 ---
 
-**Enjoy building real-time applications with BNK WebSocket Manager!** If you have any questions, suggestions, or issues, feel free to open a discussion or issue on GitHub. We appreciate your feedback.
+**Enjoy building real-time applications with BNK Sync Engine Manager!** If you have any questions, suggestions, or issues, feel free to open a discussion or issue on GitHub. We appreciate your feedback.

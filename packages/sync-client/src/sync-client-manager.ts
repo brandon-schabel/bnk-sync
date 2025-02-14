@@ -1,14 +1,14 @@
-import type { BaseServerMessage, BaseClientMessage } from "./client-websocket-types";
+import type { BaseServerMessage, BaseClientMessage } from "./sync-client-types";
 
 /**
  * Configuration for our client-side manager.
  */
-export interface ClientWebSocketManagerConfig<
+export interface SyncClientManagerConfig<
     TIncoming extends BaseServerMessage = BaseServerMessage,
     TOutgoing extends BaseClientMessage = BaseClientMessage
 > {
     /**
-     * The URL to which we connect. e.g. "ws://localhost:3007"
+ * The URL to which we connect. e.g. "ws://localhost:3007"
      */
     url: string;
 
@@ -79,11 +79,11 @@ export interface ClientWebSocketManagerConfig<
  * A generic client-side WebSocket Manager that can optionally validate both incoming
  * and outgoing messages. This ensures type safety when using a shared Zod schema.
  */
-export class ClientWebSocketManager<
+export class SyncClientManager<
     TIncoming extends BaseServerMessage = BaseServerMessage,
     TOutgoing extends BaseClientMessage = BaseClientMessage
 > {
-    private config: ClientWebSocketManagerConfig<TIncoming, TOutgoing>;
+    private config: SyncClientManagerConfig<TIncoming, TOutgoing>;
     private socket: WebSocket | null = null;
     private reconnectAttempts = 0;
     private reconnectTimeoutId: ReturnType<typeof setTimeout> | null = null;
@@ -101,7 +101,7 @@ export class ClientWebSocketManager<
         };
     }
 
-    constructor(config: ClientWebSocketManagerConfig<TIncoming, TOutgoing>) {
+    constructor(config: SyncClientManagerConfig<TIncoming, TOutgoing>) {
         this.config = config;
         this.connect();
     }
@@ -113,7 +113,7 @@ export class ClientWebSocketManager<
         const { url, debug } = this.config;
 
         if (debug) {
-            console.log(`[ClientWebSocketManager] Connecting to ${url} ...`);
+            console.log(`[SyncClientManager] Connecting to ${url} ...`);
         }
 
         this.socket = new WebSocket(url);
@@ -135,7 +135,7 @@ export class ClientWebSocketManager<
 
         if (this.socket && this.socket.readyState === WebSocket.OPEN) {
             if (this.config.debug) {
-                console.log("[ClientWebSocketManager] Closing connection");
+                console.log("[SyncClientManager] Closing connection");
             }
             this.socket.close();
         }
@@ -148,7 +148,7 @@ export class ClientWebSocketManager<
     public sendMessage(msg: TOutgoing) {
         if (!this.socket || this.socket.readyState !== WebSocket.OPEN) {
             if (this.config.debug) {
-                console.warn("[ClientWebSocketManager] Cannot send, socket not open:", msg);
+                console.warn("[SyncClientManager] Cannot send, socket not open:", msg);
             }
             return;
         }
@@ -161,7 +161,7 @@ export class ClientWebSocketManager<
             const str = JSON.stringify(validated);
             this.socket.send(str);
         } catch (error) {
-            console.error("[ClientWebSocketManager] Error validating/sending message:", error);
+            console.error("[SyncClientManager] Error validating/sending message:", error);
         }
     }
 
@@ -170,7 +170,7 @@ export class ClientWebSocketManager<
      */
     private handleOpen = () => {
         if (this.config.debug) {
-            console.log("[ClientWebSocketManager] Connection opened");
+            console.log("[SyncClientManager] Connection opened");
         }
         // Reset reconnect attempts on successful connection.
         this.reconnectAttempts = 0;
@@ -184,7 +184,7 @@ export class ClientWebSocketManager<
      */
     private handleClose = (event: CloseEvent) => {
         if (this.config.debug) {
-            console.log("[ClientWebSocketManager] Connection closed:", event.reason);
+            console.log("[SyncClientManager] Connection closed:", event.reason);
         }
         this.config.onClose?.(event);
 
@@ -198,14 +198,14 @@ export class ClientWebSocketManager<
                 this.reconnectTimeoutId = setTimeout(() => {
                     if (this.config.debug) {
                         console.log(
-                            `[ClientWebSocketManager] Attempting reconnect (#${this.reconnectAttempts}) ...`
+                            `[SyncClientManager] Attempting reconnect (#${this.reconnectAttempts}) ...`
                         );
                     }
                     this.connect();
                 }, this.config.reconnectIntervalMs ?? 2000);
             } else if (this.config.debug) {
                 console.warn(
-                    `[ClientWebSocketManager] Max reconnect attempts reached (${maxAttempts}).`
+                    `[SyncClientManager] Max reconnect attempts reached (${maxAttempts}).`
                 );
             }
         }
@@ -216,7 +216,7 @@ export class ClientWebSocketManager<
      */
     private handleError = (event: Event) => {
         if (this.config.debug) {
-            console.error("[ClientWebSocketManager] Connection error:", event);
+            console.error("[SyncClientManager] Connection error:", event);
         }
         this.config.onError?.(event);
     };
@@ -230,7 +230,7 @@ export class ClientWebSocketManager<
         try {
             parsed = JSON.parse(event.data);
         } catch (err) {
-            console.error("[ClientWebSocketManager] Failed to parse incoming data:", err);
+            console.error("[SyncClientManager] Failed to parse incoming data:", err);
             return;
         }
 
@@ -239,7 +239,7 @@ export class ClientWebSocketManager<
             try {
                 fn(parsed);
             } catch (listenerError) {
-                console.error("[ClientWebSocketManager] Error in raw message listener:", listenerError);
+                console.error("[SyncClientManager] Error in raw message listener:", listenerError);
             }
         });
 
@@ -249,7 +249,7 @@ export class ClientWebSocketManager<
             try {
                 incoming = this.config.validateIncomingMessage(parsed);
             } catch (validationError) {
-                console.error("[ClientWebSocketManager] Incoming message validation failed:", validationError);
+                console.error("[SyncClientManager] Incoming message validation failed:", validationError);
                 return;
             }
         } else {
@@ -261,7 +261,7 @@ export class ClientWebSocketManager<
         if (handler) {
             handler(incoming as Extract<TIncoming, { type: typeof typeKey }>);
         } else if (this.config.debug) {
-            console.warn("[ClientWebSocketManager] No handler for message type:", incoming.type);
+            console.warn("[SyncClientManager] No handler for message type:", incoming.type);
         }
     };
 

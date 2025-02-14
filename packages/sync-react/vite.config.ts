@@ -17,8 +17,8 @@ export default defineConfig({
   build: {
     lib: {
       entry: path.resolve(__dirname, 'src', 'index.ts'),
-      name: 'WebSocketManagerReact',
-      fileName: (format) => `react-websocket-manager.${format}.js`,
+      name: 'SyncManagerReact',
+      fileName: (format) => `sync-react.${format}.js`,
       formats: ['es', 'cjs'],
     },
     rollupOptions: {

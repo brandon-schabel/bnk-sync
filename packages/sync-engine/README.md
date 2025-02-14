@@ -17,18 +17,18 @@ Below is the fastest way to get up and running. This minimal setup:
 
 ```bash
 # Using Bun
-bun add @bnk/backend-websocket-manager
+bun add @bnk/sync-engine
 
 # Or with npm/yarn
-npm install @bnk/backend-websocket-manager
-# yarn add @bnk/backend-websocket-manager
+npm install @bnk/sync-engine
+# yarn add @bnk/sync-engine
 ```
 
 ### 2. Define Your State and Message
 
 **`my-types.ts`**:
 ```ts
-import type { BaseMessage } from "@bnk/backend-websocket-manager";
+import type { BaseMessage } from "@bnk/sync-engine";
 
 export interface MyAppState {
   counter: number;
@@ -46,7 +46,7 @@ export type MyAppMessage = IncrementMessage; // Or a union of multiple message t
 
 **`message-handlers.ts`**:
 ```ts
-import type { MessageHandler } from "@bnk/backend-websocket-manager";
+import type { MessageHandler } from "@bnk/sync-engine";
 import type { MyAppState, MyAppMessage } from "./my-types";
 
 export const incrementHandler: MessageHandler<MyAppState, MyAppMessage> = {
@@ -65,13 +65,13 @@ export const myHandlers = [incrementHandler];
 
 **`manager-setup.ts`**:
 ```ts
-import { BackendWebSocketManager } from "@bnk/backend-websocket-manager";
+import { SyncEngine } from "@bnk/sync-engine";
 import { myHandlers } from "./message-handlers";
 import type { MyAppState, MyAppMessage } from "./my-types";
 
 const initialState: MyAppState = { counter: 0 };
 
-export const myWebSocketManager = new BackendWebSocketManager<MyAppState, MyAppMessage>({
+export const mySyncManager = new SyncEngine<MyAppState, MyAppMessage>({
   initialState,
   messageHandlers: myHandlers,
   debug: true, // Enable verbose console logs
@@ -83,7 +83,7 @@ export const myWebSocketManager = new BackendWebSocketManager<MyAppState, MyAppM
 **`bun-server.ts`**:
 ```ts
 import { serve } from "bun";
-import { myWebSocketManager } from "./manager-setup";
+import { mySyncManager } from "./manager-setup";
 
 serve({
   port: 3000,
@@ -92,17 +92,17 @@ serve({
   },
   websocket: {
     open(ws) {
-      myWebSocketManager.handleOpen(ws);
+      mySyncManager.handleOpen(ws);
     },
     close(ws) {
-      myWebSocketManager.handleClose(ws);
+      mySyncManager.handleClose(ws);
     },
     async message(ws, rawData) {
       // Process incoming messages
-      await myWebSocketManager.handleMessage(ws, rawData.toString());
+      await mySyncManager.handleMessage(ws, rawData.toString());
 
       // Broadcast the updated state to all clients
-      await myWebSocketManager.broadcastState();
+      await mySyncManager.broadcastState();
     },
   },
 });
@@ -134,7 +134,7 @@ You can validate incoming messages either manually or by using your preferred sc
 ### Manual Validation
 
 ```ts
-import { BackendWebSocketManager } from "@bnk/backend-websocket-manager";
+import { SyncEngine } from "@bnk/sync-engine";
 import { myHandlers } from "./message-handlers";
 import type { MyAppState, MyAppMessage } from "./my-types";
 
@@ -150,7 +150,7 @@ function manualValidate(raw: unknown): MyAppMessage {
   throw new Error("Invalid message format");
 }
 
-export const myWebSocketManager = new BackendWebSocketManager<MyAppState, MyAppMessage>({
+export const mySyncManager = new SyncEngine<MyAppState, MyAppMessage>({
   initialState: { counter: 0 },
   messageHandlers: myHandlers,
   validateMessage: (raw) => {
@@ -164,7 +164,7 @@ export const myWebSocketManager = new BackendWebSocketManager<MyAppState, MyAppM
 
 ```ts
 import { z } from "zod";
-import { BackendWebSocketManager } from "@bnk/backend-websocket-manager";
+import { SyncEngine } from "@bnk/sync-engine";
 import { myHandlers } from "./message-handlers";
 import type { MyAppState, MyAppMessage } from "./my-types";
 
@@ -176,7 +176,7 @@ const incrementSchema = z.object({
 // If you have multiple message types, you can use z.discriminatedUnion(...)
 const messageSchema = incrementSchema; // Example: single schema
 
-export const myWebSocketManager = new BackendWebSocketManager<MyAppState, MyAppMessage>({
+export const mySyncManager = new SyncEngine<MyAppState, MyAppMessage>({
   initialState: { counter: 0 },
   messageHandlers: myHandlers,
   validateMessage: (raw) => {
@@ -189,7 +189,7 @@ export const myWebSocketManager = new BackendWebSocketManager<MyAppState, MyAppM
 
 ```ts
 import * as yup from "yup";
-import { BackendWebSocketManager } from "@bnk/backend-websocket-manager";
+import { SyncEngine } from "@bnk/sync-engine";
 import type { MyAppState, MyAppMessage } from "./my-types";
 
 const incrementSchema = yup.object().shape({
@@ -202,7 +202,7 @@ function validateWithYup(raw: unknown): MyAppMessage {
   return incrementSchema.validateSync(parsed) as MyAppMessage;
 }
 
-export const myWebSocketManager = new BackendWebSocketManager<MyAppState, MyAppMessage>({
+export const mySyncManager = new SyncEngine<MyAppState, MyAppMessage>({
   initialState: { counter: 0 },
   messageHandlers: [],
   validateMessage: validateWithYup,
@@ -216,7 +216,7 @@ export const myWebSocketManager = new BackendWebSocketManager<MyAppState, MyAppM
 If you need to persist state between restarts, you can use the built-in **`SQLiteWebSocketAdapter`**. It stores your entire state object and version number in a single SQLite table.
 
 ```ts
-import { BackendWebSocketManager, SQLiteWebSocketAdapter } from "@bnk/backend-websocket-manager";
+import { SyncEngine, SQLiteWebSocketAdapter } from "@bnk/sync-engine";
 import type { MyAppState, MyAppMessage } from "./my-types";
 import { myHandlers } from "./message-handlers";
 
@@ -225,7 +225,7 @@ const sqliteAdapter = new SQLiteWebSocketAdapter<MyAppState>({
   tableName: "my_custom_websocket_table", // Optional, defaults to "websocket_state"
 });
 
-export const myWebSocketManager = new BackendWebSocketManager<MyAppState, MyAppMessage>({
+export const mySyncManager = new SyncEngine<MyAppState, MyAppMessage>({
   initialState: { counter: 0 },
   messageHandlers: myHandlers,
   adapter: sqliteAdapter,
@@ -237,7 +237,7 @@ export const myWebSocketManager = new BackendWebSocketManager<MyAppState, MyAppM
 - On startup, the adapter creates a table (if it doesn’t exist).
 - It loads the previously saved state/version into the manager.
 - On each state update, `save()` is called, writing your data to SQLite.
-- You can also manually call `myWebSocketManager.createBackup()` for a backup.
+- You can also manually call `mySyncManager.createBackup()` for a backup.
 
 ---
 
@@ -246,7 +246,7 @@ export const myWebSocketManager = new BackendWebSocketManager<MyAppState, MyAppM
 Alternatively, a **`FileWebSocketAdapter`** is available to store state on the filesystem as JSON:
 
 ```ts
-import { BackendWebSocketManager, FileWebSocketAdapter } from "@bnk/backend-websocket-manager";
+import { SyncEngine, FileWebSocketAdapter } from "@bnk/sync-engine";
 import { myHandlers } from "./message-handlers";
 import type { MyAppState, MyAppMessage } from "./my-types";
 
@@ -255,7 +255,7 @@ const fileAdapter = new FileWebSocketAdapter<MyAppState>({
   backupsDir: "./backups", // optional
 });
 
-export const myWebSocketManager = new BackendWebSocketManager<MyAppState, MyAppMessage>({
+export const mySyncManager = new SyncEngine<MyAppState, MyAppMessage>({
   initialState: { counter: 0 },
   messageHandlers: myHandlers,
   adapter: fileAdapter,
@@ -267,10 +267,10 @@ export const myWebSocketManager = new BackendWebSocketManager<MyAppState, MyAppM
 
 ## Configuration Overview
 
-When creating a new `BackendWebSocketManager`, you can pass in various config options:
+When creating a new `SyncEngine`, you can pass in various config options:
 
 ```ts
-interface BackendWebSocketManagerConfig<TState, TMessage> {
+interface SyncEngineConfig<TState, TMessage> {
   // Initial in-memory state (if no adapter is used, or if adapter data is empty)
   initialState?: TState;
 
@@ -281,7 +281,7 @@ interface BackendWebSocketManagerConfig<TState, TMessage> {
   debug?: boolean;
 
   // Lifecycle hooks (onConnect, onDisconnect, onStateChange, etc.)
-  hooks?: BackendWebSocketManagerHooks<TState>;
+  hooks?: SyncEngineHooks<TState>;
 
   // Interval for sending "ping" messages (ms). If 0 or undefined, heartbeat is disabled.
   heartbeatIntervalMs?: number;
@@ -319,8 +319,8 @@ bun test
 
 ```ts
 import { describe, it, expect } from "bun:test";
-import { BackendWebSocketManager } from "@bnk/backend-websocket-manager";
-import type { BaseMessage } from "@bnk/backend-websocket-manager";
+import { SyncEngine } from "@bnk/sync-engine";
+import type { BaseMessage } from "@bnk/sync-engine";
 
 interface TestState { counter: number }
 interface IncrementMsg extends BaseMessage {
@@ -328,9 +328,9 @@ interface IncrementMsg extends BaseMessage {
   amount: number;
 }
 
-describe("BackendWebSocketManager", () => {
+describe("SyncEngine", () => {
   it("increments the state counter", async () => {
-    const manager = new BackendWebSocketManager<TestState, IncrementMsg>({
+    const manager = new SyncEngine<TestState, IncrementMsg>({
       initialState: { counter: 0 },
       messageHandlers: [{
         type: "increment",
@@ -366,5 +366,5 @@ Contributions of all kinds are welcome, whether it’s a bug report, new feature
 ## License
 
 This project is available under the [MIT License](./LICENSE).  
-Enjoy building real-time applications with **backend-websocket-manager**!
+Enjoy building real-time applications with **sync-engine**!
 ```

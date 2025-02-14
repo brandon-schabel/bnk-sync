@@ -1,10 +1,10 @@
-# **BNK WebSocket**
+# **BNK Sync Engine**
 
-A **pluggable**, **type-safe**, and **performance-focused** suite of TypeScript libraries built on **Bun** for managing WebSocket connections. BNK WebSocket is split into three main packages, each addressing a different part of a real-time stack:
+A **pluggable**, **type-safe**, and **performance-focused** suite of TypeScript libraries built on **Bun** for managing WebSocket connections. BNK Sync Engine is split into three main packages, each addressing a different part of a real-time stack:
 
-- [`@bnk/backend-websocket-manager`](#bnkbackend-websocket-manager) – Server-side WebSocket manager for Bun.  
-- [`@bnk/client-websocket-manager`](#bnkclient-websocket-manager) – Client-side WebSocket manager for browsers (or other WebSocket environments).  
-- [`@bnk/react-websocket-manager`](#bnkreact-websocket-manager) – React-specific hooks and components for WebSocket integration.
+- [`@bnk/sync-engine`](#bnksync-engine) – Server-side WebSocket manager for Bun.  
+- [`@bnk/sync-client`](#bnksync-client) – Client-side WebSocket manager for browsers (or other WebSocket environments).  
+- [`@bnk/sync-react`](#bnksync-react) – React-specific hooks and components for WebSocket integration.
 
 All packages prioritize **type safety**, **minimal dependencies**, and a **pluggable architecture** for easy customization.
 
@@ -35,15 +35,15 @@ All packages prioritize **type safety**, **minimal dependencies**, and a **plugg
 
 ## **Introduction**
 
-**BNK WebSocket** aims to simplify building real-time applications in **Bun** by offering:
+**BNK Sync Engine** aims to simplify building real-time applications in **Bun** by offering:
 
-- **High Performance**: Built on Bun’s native WebSocket and HTTP server APIs.  
+- **High Performance**: Built on Bun’s native WebSocket.  
 - **Type Safety**: Written in TypeScript, with generics and advanced typing to ensure confidence in your code.  
 - **Modular & Composable**: Each package can be used independently or combined for a fullstack approach.  
 - **Minimal Dependencies**: Minimizes or eliminates external dependencies for speed and smaller bundles.  
 - **Pluggability**: Support for custom message handlers, validation, hooks, and optional persistence (SQLite or file-based).  
 
-Whether you’re building a small chat app or a robust real-time platform, BNK WebSocket provides sensible defaults and straightforward extensibility.
+Whether you’re building a small chat app or a robust real-time platform, BNK Sync Engine provides sensible defaults and straightforward extensibility.
 
 ---
 
@@ -52,9 +52,9 @@ Whether you’re building a small chat app or a robust real-time platform, BNK W
 Using **Bun** (recommended):
 
 ```bash
-bun add @bnk/backend-websocket-manager
-bun add @bnk/client-websocket-manager
-bun add @bnk/react-websocket-manager
+bun add @bnk/sync-engine
+bun add @bnk/sync-client
+bun add @bnk/sync-react
 ```
 
 ---
@@ -65,15 +65,15 @@ Below are minimal examples for each package. For more detailed usage, see the [A
 
 ### **Server Example**
 
-A simple Bun server using **`@bnk/backend-websocket-manager`**:
+A simple Bun server using **`@bnk/sync-engine`**:
 
 ```ts
 import { serve } from "bun";
 import {
-  BackendWebSocketManager,
+  SyncEngine,
   type MessageHandler,
   type BaseMessage,
-} from "@bnk/backend-websocket-manager";
+} from "@bnk/sync-engine";
 
 interface MyAppState {
   counter: number;
@@ -104,7 +104,7 @@ async function setState(newState: MyAppState): Promise<void> {
   currentState = structuredClone(newState);
 }
 
-const manager = new BackendWebSocketManager<MyAppState, IncrementMessage>({
+const manager = new SyncEngine<MyAppState, IncrementMessage>({
   initialState: await getState(),
   messageHandlers: [incrementHandler],
   debug: true,
@@ -139,14 +139,14 @@ console.log("Server running at http://localhost:3000");
 
 ### **Client Example (Vanilla)**
 
-A minimal WebSocket client using **`@bnk/client-websocket-manager`** in the browser (or any JS runtime with WebSocket):
+A minimal Sync client using **`@bnk/sync-client`** in the browser (or any JS runtime with WebSocket):
 
 ```ts
 import {
-  ClientWebSocketManager,
+  SyncClientManager,
   type BaseServerMessage,
   type BaseClientMessage,
-} from "@bnk/client-websocket-manager";
+} from "@bnk/sync-client";
 
 interface IncomingServerMessage extends BaseServerMessage {
   type: "state_update";
@@ -158,7 +158,7 @@ interface OutgoingClientMessage extends BaseClientMessage {
   amount: number;
 }
 
-const clientManager = new ClientWebSocketManager<
+const clientManager = new SyncClientManager<
   IncomingServerMessage,
   OutgoingClientMessage
 >({
@@ -177,12 +177,12 @@ clientManager.sendMessage({ type: "increment", amount: 5 });
 
 ### **React Example**
 
-A simple React component using **`@bnk/react-websocket-manager`**:
+A simple React component using **`@bnk/sync-react`**:
 
 ```tsx
 import React from "react";
-import { useClientWebSocket } from "@bnk/react-websocket-manager";
-import type { BaseClientMessage, BaseServerMessage } from "@bnk/client-websocket-manager";
+import { useSyncClient } from "@bnk/sync-react";
+import type { BaseClientMessage, BaseServerMessage } from "@bnk/sync-client";
 
 interface OutgoingMessage extends BaseClientMessage {
   type: "increment";
@@ -195,7 +195,7 @@ interface IncomingMessage extends BaseServerMessage {
 }
 
 export function Counter() {
-  const { isOpen, sendMessage } = useClientWebSocket<IncomingMessage, OutgoingMessage>({
+  const { isOpen, sendMessage } = useSyncClient<IncomingMessage, OutgoingMessage>({
     config: {
       url: "ws://localhost:3000/ws",
       debug: true,
@@ -246,7 +246,7 @@ function validateIncrement(raw: unknown): IncrementMessage {
 }
 
 // Then pass `validateMessage` in the manager config:
-const manager = new BackendWebSocketManager<MyAppState, IncrementMessage>({
+const manager = new SyncEngine<MyAppState, IncrementMessage>({
   initialState: { counter: 0 },
   messageHandlers: [incrementHandler],
   validateMessage: (raw) => validateIncrement(raw),
@@ -268,7 +268,7 @@ const IncrementSchema = z.object({
 export type IncrementMessage = z.infer<typeof IncrementSchema>;
 
 // Pass it in:
-const manager = new BackendWebSocketManager<MyAppState, IncrementMessage>({
+const manager = new SyncEngine<MyAppState, IncrementMessage>({
   initialState: { counter: 0 },
   messageHandlers: [incrementHandler],
   validateMessage: (raw) => {
@@ -284,8 +284,8 @@ const manager = new BackendWebSocketManager<MyAppState, IncrementMessage>({
 1. **Define your application state** (e.g., chat logs, counters, etc.) in a shared TypeScript type or a Zod schema.  
 2. **Define your message types** similarly (possibly a union of multiple message variants).  
 3. **Use `validateMessage`** on the server for robust sanity checks.  
-4. Optionally, **validate outgoing messages** on the client by providing `validateOutgoingMessage` in the `ClientWebSocketManager` config.  
-5. For React, **wrap everything** in a provider or use the `useClientWebSocket` hook for streamlined subscription to WebSocket events.
+4. Optionally, **validate outgoing messages** on the client by providing `validateOutgoingMessage` in the `SyncClientManager` config.  
+5. For React, **wrap everything** in a provider or use the `useSyncClient` hook for streamlined subscription to WebSocket events.
 
 ---
 
@@ -296,14 +296,14 @@ const manager = new BackendWebSocketManager<MyAppState, IncrementMessage>({
 You can use built-in adapters to **persist your state** in SQLite. This ensures data survives server restarts:
 
 ```ts
-import { BackendWebSocketManager, SQLiteWebSocketAdapter } from "@bnk/backend-websocket-manager";
+import { SyncEngine, SQLiteSyncAdapter } from "@bnk/sync-engine";
 
-const sqliteAdapter = new SQLiteWebSocketAdapter<MyAppState>({
-  path: "my-websocket.sqlite",
-  tableName: "my_websocket_table",
+const sqliteAdapter = new SQLiteSyncAdapter<MyAppState>({
+  path: "my-sync.sqlite",
+  tableName: "my_sync_table",
 });
 
-const manager = new BackendWebSocketManager<MyAppState, IncrementMessage>({
+const manager = new SyncEngine<MyAppState, IncrementMessage>({
   initialState: { counter: 0 },
   messageHandlers: [incrementHandler],
   adapter: sqliteAdapter,
@@ -317,14 +317,14 @@ const manager = new BackendWebSocketManager<MyAppState, IncrementMessage>({
 Alternatively, store state in a JSON file:
 
 ```ts
-import { BackendWebSocketManager, FileWebSocketAdapter } from "@bnk/backend-websocket-manager";
+import { SyncEngine, FileWebSocketAdapter } from "@bnk/sync-engine";
 
 const fileAdapter = new FileWebSocketAdapter<MyAppState>({
   filePath: "./websocket-state.json",
   backupsDir: "./backups",  // optional
 });
 
-const manager = new BackendWebSocketManager<MyAppState, IncrementMessage>({
+const manager = new SyncEngine<MyAppState, IncrementMessage>({
   initialState: { counter: 0 },
   messageHandlers: [incrementHandler],
   adapter: fileAdapter,
@@ -359,7 +359,7 @@ You can also send custom messages to specific clients by calling `ws.send()` ins
 Example hooking into `onConnect`:
 
 ```ts
-const manager = new BackendWebSocketManager<MyAppState, MyMessage>({
+const manager = new SyncEngine<MyAppState, MyMessage>({
   messageHandlers,
   hooks: {
     onConnect: async (ws) => {
@@ -383,9 +383,9 @@ A typical test might look like:
 
 ```ts
 import { describe, it, expect } from "bun:test";
-import { BackendWebSocketManager } from "@bnk/backend-websocket-manager";
+import { SyncEngine } from "@bnk/sync-engine";
 
-describe("BackendWebSocketManager", () => {
+describe("SyncEngine", () => {
   it("handles increment messages correctly", async () => {
     // ...
     expect( /* ... */ ).toBeTruthy();
@@ -410,4 +410,4 @@ All contributions—bug fixes, features, docs—are welcome.
 
 ## **License**
 
-**BNK WebSocket** is licensed under the [MIT License](./LICENSE). Feel free to use, modify, and distribute it in your own projects. If you find it useful or have suggestions, please open an issue or submit a pull request. Happy coding with **Bun**!
+**BNK Sync Engine** is licensed under the [MIT License](./LICENSE). Feel free to use, modify, and distribute it in your own projects. If you find it useful or have suggestions, please open an issue or submit a pull request. Happy coding with **Bun**!

@@ -1,5 +1,5 @@
 {
-  "name": "bnk-websocket-react-example-client",
+  "name": "bnk-sync-react-example-client",
   "private": true,
   "version": "0.0.0",
   "type": "module",
@@ -20,7 +20,7 @@
     "globals": "^15.14.0",
     "typescript": "~5.6.2",
     "vite": "^6.0.5",
-    "@bnk/react-websocket-manager": "workspace:*",
-    "@bnk/client-websocket-manager": "workspace:*"
+    "@bnk/sync-react": "workspace:*",
+    "@bnk/sync-client": "workspace:*"
   }
 }

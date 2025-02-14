@@ -1,43 +1,43 @@
-// packages/react-websocket-manager/src/use-client-websocket.ts
+// packages/sync-react/src/use-client-websocket.ts
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
-    ClientWebSocketManager,
-} from "@bnk/client-websocket-manager";
+    SyncClientManager,
+} from "@bnk/sync-client";
 import type {
     BaseServerMessage,
     BaseClientMessage,
-    ClientWebSocketManagerConfig,
-} from "@bnk/client-websocket-manager";
+    SyncClientManagerConfig,
+} from "@bnk/sync-client";
 
-export interface UseClientWebSocketConfig<
+export interface UseSyncClientConfig<
     TIncoming extends BaseServerMessage = BaseServerMessage,
     TOutgoing extends BaseClientMessage = BaseClientMessage
 > {
     /**
      * Optionally provide a pre-instantiated manager (skips creating a new one).
      */
-    manager?: ClientWebSocketManager<TIncoming, TOutgoing>;
+    manager?: SyncClientManager<TIncoming, TOutgoing>;
 
     /**
      * Configuration for creating a new manager if one isn't provided.
      */
-    config?: Partial<ClientWebSocketManagerConfig<TIncoming, TOutgoing>>;
+    config?: Partial<SyncClientManagerConfig<TIncoming, TOutgoing>>;
 }
 
 /**
  * React hook for conveniently managing a WebSocket connection in a React app.
  * Allows optional message validation for both incoming and outgoing data.
  */
-export function useClientWebSocket<
+export function useSyncClient<
     TIncoming extends BaseServerMessage = BaseServerMessage,
     TOutgoing extends BaseClientMessage = BaseClientMessage
 >({
     config,
     manager: managerProp,
-}: UseClientWebSocketConfig<TIncoming, TOutgoing>) {
+}: UseSyncClientConfig<TIncoming, TOutgoing>) {
     const [isOpen, setIsOpen] = useState(false);
-    const managerRef = useRef<ClientWebSocketManager<TIncoming, TOutgoing> | null>(null);
+    const managerRef = useRef<SyncClientManager<TIncoming, TOutgoing> | null>(null);
 
     // Initialize the WebSocket manager only if it doesn't already exist
     if (!managerRef.current) {
@@ -48,7 +48,7 @@ export function useClientWebSocket<
                     "useClientWebSocket error: 'url' is required if no existing manager is provided."
                 );
             }
-            managerRef.current = new ClientWebSocketManager<TIncoming, TOutgoing>({
+            managerRef.current = new SyncClientManager<TIncoming, TOutgoing>({
                 url: config.url,
                 debug: config.debug,
                 autoReconnect: config.autoReconnect,

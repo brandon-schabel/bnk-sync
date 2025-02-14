@@ -1,14 +1,14 @@
 {
-  "name": "@bnk/backend-websocket-manager",
+  "name": "@bnk/sync-engine",
   "module": "src/index.ts",
   "main": "src/index.ts",
   "type": "module",
-  "version": "1.0.3",
+  "version": "1.0.1",
   "scripts": {
     "test": "bun test src/",
     "test:watch": "bun test --watch src/",
     "prepublishOnly": "bun test",
-    "publish:backend-websocket-manager": "bun publish --access public"
+    "publish:sync-engine": "bun publish --access public"
   },
   "devDependencies": {
     "bun-types": "latest",
@@ -17,6 +17,6 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/brandon-schabel/bnk-websocket.git"
+    "url": "https://github.com/brandon-schabel/bnk-sync.git"
   }
 }

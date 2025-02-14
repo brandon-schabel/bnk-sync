@@ -1,4 +1,4 @@
-# @bnk/client-websocket-manager
+# @bnk/sync-client
 
 A lightweight, **type-safe**, and **highly pluggable** WebSocket client manager for **Bun** and JavaScript/TypeScript applications. This library provides an intuitive API and advanced TypeScript definitions to make working with client-side WebSocket connections simple, robust, and performant.
 
@@ -26,7 +26,7 @@ A lightweight, **type-safe**, and **highly pluggable** WebSocket client manager 
 
 ## Introduction
 
-The **@bnk/client-websocket-manager** library focuses on:
+The **@bnk/sync-client** library focuses on:
 
 - **Type safety**: Strongly typed incoming and outgoing messages.
 - **Performance**: Leverages native WebSockets and Bun for efficiency.
@@ -42,19 +42,19 @@ Use it in any TypeScript or JavaScript environment (including React or Vanilla J
 ### Using Bun
 
 ```bash
-bun add @bnk/client-websocket-manager
+bun add @bnk/sync-client
 ```
 
 ### Using npm
 
 ```bash
-npm install @bnk/client-websocket-manager
+npm install @bnk/sync-client
 ```
 
 ### Using Yarn
 
 ```bash
-yarn add @bnk/client-websocket-manager
+yarn add @bnk/sync-client
 ```
 
 ---
@@ -67,10 +67,10 @@ Below is a minimal example showing how to set up a client WebSocket connection i
 
 ```ts
 import {
-  ClientWebSocketManager,
+  SyncClientManager,
   type BaseServerMessage,
   type BaseClientMessage,
-} from "@bnk/client-websocket-manager";
+} from "@bnk/sync-client";
 
 // Define your server->client message types
 interface MyServerMessage extends BaseServerMessage {
@@ -89,7 +89,7 @@ interface MyClientMessage extends BaseClientMessage {
   amount?: number;
 }
 
-const manager = new ClientWebSocketManager<MyServerMessage, MyClientMessage>({
+const manager = new SyncClientManager<MyServerMessage, MyClientMessage>({
   url: "ws://localhost:3007",
   debug: true, // enable debug logs for development
   onOpen: () => {
@@ -122,17 +122,17 @@ const manager = new ClientWebSocketManager<MyServerMessage, MyClientMessage>({
 
 ### Integration with a Backend Manager
 
-In many scenarios, you'll pair this client with a server-side manager (for instance, the **@bnk/backend-websocket-manager**). Below is a simplified illustration of how that might look:
+In many scenarios, you'll pair this client with a server-side manager (for instance, the **@bnk/sync-engine**). Below is a simplified illustration of how that might look:
 
 **Server (TypeScript/Bun)**:
 
 ```ts
 import { serve } from "bun";
 import {
-  BackendWebSocketManager,
+  SyncEngine,
   type BaseMessage,
   type MessageHandler,
-} from "@bnk/backend-websocket-manager";
+} from "@bnk/sync-engine";
 
 // Example state
 interface MyServerState {
@@ -152,7 +152,7 @@ interface PingMessage extends BaseMessage {
 type MyServerMessage = IncrementMessage | PingMessage;
 
 // Create manager with handlers
-const manager = new BackendWebSocketManager<MyServerState, MyServerMessage>({
+const manager = new SyncEngine<MyServerState, MyServerMessage>({
   getState: async () => ({ counter: 0 }),
   setState: async (newState) => {
     // persist newState somewhere (in-memory, DB, etc.)
@@ -194,14 +194,14 @@ serve({
 });
 ```
 
-**Client (using @bnk/client-websocket-manager)**:
+**Client (using @bnk/sync-client)**:
 
 ```ts
 import {
-  ClientWebSocketManager,
-} from "@bnk/client-websocket-manager";
+  SyncClientManager,
+} from "@bnk/sync-client";
 
-const manager = new ClientWebSocketManager({
+const manager = new SyncClientManager({
   url: "ws://localhost:3007",
   debug: true,
   messageHandlers: {
@@ -223,9 +223,9 @@ manager.sendMessage({ type: "increment", amount: 5 });
 Even though this library is written in TypeScript, you can still use it in a traditional JavaScript setup. Just skip the type annotations:
 
 ```js
-import { ClientWebSocketManager } from "@bnk/client-websocket-manager";
+import { SyncClientManager } from "@bnk/sync-client";
 
-const manager = new ClientWebSocketManager({
+const manager = new SyncClientManager({
   url: "ws://localhost:3007",
   debug: false,
   messageHandlers: {
@@ -246,7 +246,7 @@ manager.sendMessage({ type: "hello_server" });
 
 ### Interfaces
 
-#### `ClientWebSocketManagerConfig<TIncoming, TOutgoing>`
+#### `SyncClientManagerConfig<TIncoming, TOutgoing>`
 
 - **`url: string`** – The WebSocket endpoint to connect to.
 - **`debug?: boolean`** – Enable debug logs (optional).
@@ -267,14 +267,14 @@ manager.sendMessage({ type: "hello_server" });
 
 ### Classes
 
-#### `ClientWebSocketManager<TIncoming, TOutgoing>`
+#### `SyncClientManager<TIncoming, TOutgoing>`
 
 This class manages a single WebSocket connection, provides lifecycle hooks, and handles message dispatch:
 
 - **Constructor**  
 
   ```ts
-  constructor(config: ClientWebSocketManagerConfig<TIncoming, TOutgoing>)
+  constructor(config: SyncClientManagerConfig<TIncoming, TOutgoing>)
   ```
 
 - **`disconnect(): void`**  
@@ -287,7 +287,7 @@ This class manages a single WebSocket connection, provides lifecycle hooks, and 
 
 ## Message Validation
 
-The ClientWebSocketManager supports robust message validation for both incoming and outgoing messages. For best practices, we recommend sharing validation schemas between client and server using a shared package in your workspace.
+The SyncClientManager supports robust message validation for both incoming and outgoing messages. For best practices, we recommend sharing validation schemas between client and server using a shared package in your workspace.
 
 ### Shared Type Validation (Recommended)
 
@@ -357,9 +357,9 @@ import {
     IncomingServerMessageSchema,
     OutgoingClientMessageSchema,
 } from "@your-org/shared-types";
-import { ClientWebSocketManager } from "@bnk/client-websocket-manager";
+import { SyncClientManager } from "@bnk/sync-client";
 
-const manager = new ClientWebSocketManager<IncomingServerMessage, OutgoingClientMessage>({
+const manager = new SyncClientManager<IncomingServerMessage, OutgoingClientMessage>({
     url: "ws://localhost:3007",
     debug: true,
     // Use shared validation schemas
@@ -398,9 +398,9 @@ import {
     ChatAppStateSchema,
     OutgoingClientMessageSchema,
 } from "@your-org/shared-types";
-import { BackendWebSocketManager } from "@bnk/backend-websocket-manager";
+import { SyncEngine } from "@bnk/sync-engine";
 
-const manager = new BackendWebSocketManager<ChatAppState, OutgoingClientMessage>({
+const manager = new SyncEngine<ChatAppState, OutgoingClientMessage>({
     validateMessage: (msg) => OutgoingClientMessageSchema.parse(msg),
     validateState: (state) => ChatAppStateSchema.parse(state),
     // ... rest of your config
@@ -470,7 +470,7 @@ bun add @your-org/shared-types@workspace:*
 onClose: (event) => {
   if (shouldReconnect) {
     setTimeout(() => {
-      new ClientWebSocketManager(config);
+      new SyncClientManager(config);
     }, 1000);
   }
 }
@@ -519,4 +519,4 @@ This project is licensed under the **MIT License**. See the [LICENSE](./LICENSE)
 
 _**Why this structure?** Providing separate sections for **Usage**, **API** docs, and **Configuration** ensures clarity and maintainability. Readers can quickly find the details they need without hunting through large code blocks._
 
-Enjoy using **@bnk/client-websocket-manager** for robust, type-safe WebSocket connections in your Bun or JS/TS applications!
+Enjoy using **@bnk/sync-client** for robust, type-safe WebSocket connections in your Bun or JS/TS applications!

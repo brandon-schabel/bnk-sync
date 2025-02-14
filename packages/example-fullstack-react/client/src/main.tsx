@@ -2,12 +2,12 @@ import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import './index.css'
 import App from './app.tsx'
-import { ChatWebSocketProvider } from './chat-web-socket-provider.tsx'
+import { ChatSyncProvider } from './chat-sync-provider.tsx'
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <ChatWebSocketProvider>
+    <ChatSyncProvider>
       <App />
-    </ChatWebSocketProvider>
+    </ChatSyncProvider>
   </StrictMode>,
 )

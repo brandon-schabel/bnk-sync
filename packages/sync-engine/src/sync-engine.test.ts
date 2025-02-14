@@ -1,12 +1,12 @@
 import { describe, it, expect, beforeEach, afterEach, mock } from "bun:test";
-import { BackendWebSocketManager } from "./backend-websocket-manager";
+import { SyncEngine } from "./sync-engine";
 import type {
-  BackendWebSocketManagerConfig,
+  SyncEngineConfig,
   BaseMessage,
   MessageHandler,
-  BackendWebSocketPersistenceAdapter,
-  VersionedWebSocketData,
-} from "./backend-websocket-types";
+  SyncEnginePersistenceAdapter,
+  VersionedSyncData,
+} from "./sync-engine-types";
 import { z } from "zod";
 
 // Test state type
@@ -38,8 +38,8 @@ const messageSchema = z.discriminatedUnion("type", [
 ]);
 
 // Mock adapter for testing persistence
-class MockAdapter implements BackendWebSocketPersistenceAdapter<TestState> {
-  private store: VersionedWebSocketData<TestState> = {
+class MockAdapter implements SyncEnginePersistenceAdapter<TestState> {
+  private store: VersionedSyncData<TestState> = {
     state: { counter: 0 },
     version: 0,
   };
@@ -52,8 +52,8 @@ class MockAdapter implements BackendWebSocketPersistenceAdapter<TestState> {
   backup = mock(async () => {});
 }
 
-describe("BackendWebSocketManager", () => {
-  let manager: BackendWebSocketManager<TestState, TestMessage>;
+describe("SyncEngine", () => {
+  let manager: SyncEngine<TestState, TestMessage>;
   let mockWs: any;
   let mockAdapter: MockAdapter;
   let hookCalls: Record<string, number>;
@@ -95,7 +95,7 @@ describe("BackendWebSocketManager", () => {
       onPong: 0,
     };
 
-    const config: BackendWebSocketManagerConfig<TestState, TestMessage> = {
+    const config: SyncEngineConfig<TestState, TestMessage> = {
       initialState: { counter: 0 },
       messageHandlers: [incrementHandler, decrementHandler],
       enableVersioning: true,
@@ -113,7 +113,7 @@ describe("BackendWebSocketManager", () => {
       },
     };
 
-    manager = new BackendWebSocketManager(config);
+    manager = new SyncEngine(config);
     await new Promise((resolve) => setTimeout(resolve, 10)); // Wait for init
   });
 
@@ -201,7 +201,7 @@ describe("BackendWebSocketManager", () => {
     it("sends ping messages on interval", async () => {
       manager.dispose();
       
-      const config: BackendWebSocketManagerConfig<TestState, TestMessage> = {
+      const config: SyncEngineConfig<TestState, TestMessage> = {
         initialState: { counter: 0 },
         messageHandlers: [incrementHandler],
         heartbeatIntervalMs: 50,
@@ -210,7 +210,7 @@ describe("BackendWebSocketManager", () => {
         },
       };
 
-      manager = new BackendWebSocketManager(config);
+      manager = new SyncEngine(config);
       await manager.handleOpen(mockWs);
 
       await new Promise((resolve) => setTimeout(resolve, 120));
@@ -246,14 +246,14 @@ describe("BackendWebSocketManager", () => {
     it("syncs state periodically if configured", async () => {
       manager.dispose();
       
-      const config: BackendWebSocketManagerConfig<TestState, TestMessage> = {
+      const config: SyncEngineConfig<TestState, TestMessage> = {
         initialState: { counter: 0 },
         messageHandlers: [incrementHandler],
         adapter: mockAdapter,
         syncIntervalMs: 50,
       };
 
-      manager = new BackendWebSocketManager(config);
+      manager = new SyncEngine(config);
       await new Promise((resolve) => setTimeout(resolve, 120));
 
       expect(mockAdapter.save.mock.calls.length).toBeGreaterThan(1);

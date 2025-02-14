@@ -33,10 +33,10 @@ export interface MessageHandler<TState, TMessage extends BaseMessage> {
 }
 
 /**
- * Hooks that can be provided to the WebSocketManager for executing
+ * Hooks that can be provided to the SyncEngine for executing
  * custom logic at various lifecycle events.
  */
-export interface BackendWebSocketManagerHooks<TState> {
+export interface SyncEngineHooks<TState> {
     /**
      * Called whenever a new client connects.
      */
@@ -85,11 +85,11 @@ export interface BackendWebSocketManagerHooks<TState> {
 }
 
 /**
- * An interface for adapters that can persist the WebSocketManager's state.
+ * An interface for adapters that can persist the SyncEngine's state.
  */
-export interface BackendWebSocketPersistenceAdapter<TState> {
+export interface SyncEnginePersistenceAdapter<TState> {
     init(): Promise<void>;
-    load(): Promise<VersionedWebSocketData<TState>>;
+    load(): Promise<VersionedSyncData<TState>>;
     save(state: TState, version: number): Promise<void>;
     backup?(): Promise<void>;
 }
@@ -97,7 +97,7 @@ export interface BackendWebSocketPersistenceAdapter<TState> {
 /**
  * Shape of data loaded/stored by the persistence adapter.
  */
-export interface VersionedWebSocketData<TState> {
+export interface VersionedSyncData<TState> {
     state: TState;
     version: number;
 }
@@ -105,14 +105,14 @@ export interface VersionedWebSocketData<TState> {
 /**
  * Optional "middleware" concept for message processing.
  */
-export type WebSocketMiddleware<TMessage extends BaseMessage> = (
+export type SyncMiddleware<TMessage extends BaseMessage> = (
     message: TMessage
 ) => Promise<TMessage>;
 
 /**
  * Configuration object for the generic WebSocket manager.
  */
-export interface BackendWebSocketManagerConfig<TState, TMessage extends BaseMessage> {
+export interface SyncEngineConfig<TState, TMessage extends BaseMessage> {
     /**
      * Initial state if no adapter is provided or if adapter load fails.
      */
@@ -136,7 +136,7 @@ export interface BackendWebSocketManagerConfig<TState, TMessage extends BaseMess
     /**
      * Optional hooks for lifecycle events and error handling.
      */
-    hooks?: BackendWebSocketManagerHooks<TState>;
+    hooks?: SyncEngineHooks<TState>;
 
     /**
      * Milliseconds to wait before sending a ping to each client.
@@ -156,7 +156,7 @@ export interface BackendWebSocketManagerConfig<TState, TMessage extends BaseMess
     /**
      * Optional adapter for persistence.
      */
-    adapter?: BackendWebSocketPersistenceAdapter<TState>;
+    adapter?: SyncEnginePersistenceAdapter<TState>;
 
     /**
      * If true, each data mutation increments an internal version.

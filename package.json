@@ -1,5 +1,5 @@
 {
-  "name": "bnk-websocket",
+  "name": "bnk-sync",
   "module": "index.ts",
   "type": "module",
   "workspaces": [
@@ -17,6 +17,6 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/brandon-schabel/bnk-websocket.git"
+    "url": "https://github.com/brandon-schabel/bnk-sync.git"
   }
 }

@@ -1,12 +1,12 @@
 import type {
-    BackendWebSocketPersistenceAdapter,
-    VersionedWebSocketData,
-} from "../backend-websocket-types";
+    SyncEnginePersistenceAdapter,
+    VersionedSyncData,
+} from "../sync-engine-types";
 
 /**
  * Configuration options for the FileWebSocketAdapter
  */
-export interface FileWebSocketAdapterConfig<TState> {
+export interface FileSyncAdapterConfig<TState> {
     /**
      * The file path where we store the JSON data.
      * Example: `my-websocket-state.json`
@@ -41,15 +41,15 @@ export interface FileWebSocketAdapterConfig<TState> {
  * Stores the entire TState (as JSON) plus the version in a single file.
  * This parallels the KV store's FileAdapter approach, but for WebSocket state.
  */
-export class FileWebSocketAdapter<TState>
-    implements BackendWebSocketPersistenceAdapter<TState> {
+export class FileSyncAdapter<TState>
+    implements SyncEnginePersistenceAdapter<TState> {
     private filePath: string;
     private backupsDir?: string;
     private debug: boolean;
     private validateState?: (state: TState) => boolean;
     private createInitialState: () => TState;
 
-    constructor(config: FileWebSocketAdapterConfig<TState>) {
+    constructor(config: FileSyncAdapterConfig<TState>) {
         this.filePath = config.filePath;
         this.backupsDir = config.backupsDir;
         this.debug = config.debug ?? false;
@@ -69,7 +69,7 @@ export class FileWebSocketAdapter<TState>
     /**
      * Creates a new versioned data object with initial state
      */
-    private createInitialData(): VersionedWebSocketData<TState> {
+    private createInitialData(): VersionedSyncData<TState> {
         const state = this.createInitialState();
         return { state, version: 0 };
     }
@@ -98,7 +98,7 @@ export class FileWebSocketAdapter<TState>
             }
 
             try {
-                const data = JSON.parse(contents) as VersionedWebSocketData<TState>;
+                const data = JSON.parse(contents) as VersionedSyncData<TState>;
                 
                 // Validate the state if a validator is provided
                 if (this.validateState && !this.validateState(data.state)) {
@@ -122,7 +122,7 @@ export class FileWebSocketAdapter<TState>
      * Load (state + version) from the JSON file.
      * If the file is invalid or doesn't exist, returns initial state.
      */
-    public async load(): Promise<VersionedWebSocketData<TState>> {
+    public async load(): Promise<VersionedSyncData<TState>> {
         try {
             const file = Bun.file(this.filePath);
             const exists = await file.exists();
@@ -138,7 +138,7 @@ export class FileWebSocketAdapter<TState>
                 return this.createInitialData();
             }
 
-            const data = JSON.parse(contents) as VersionedWebSocketData<TState>;
+            const data = JSON.parse(contents) as VersionedSyncData<TState>;
             
             // Validate the state if a validator is provided
             if (this.validateState && !this.validateState(data.state)) {
@@ -159,7 +159,7 @@ export class FileWebSocketAdapter<TState>
      */
     public async save(state: TState, version: number): Promise<void> {
         this.debugLog("Saving state, version:", version);
-        const data: VersionedWebSocketData<TState> = { state, version };
+        const data: VersionedSyncData<TState> = { state, version };
         await this.writeData(data);
     }
 
@@ -196,7 +196,7 @@ export class FileWebSocketAdapter<TState>
     /**
      * Helper: write the entire object as JSON to disk.
      */
-    private async writeData(data: VersionedWebSocketData<TState>): Promise<void> {
+    private async writeData(data: VersionedSyncData<TState>): Promise<void> {
         try {
             this.debugLog("Writing data to file:", this.filePath);
             const serialized = JSON.stringify(data, null, 2);

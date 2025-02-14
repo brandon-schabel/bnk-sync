@@ -1,8 +1,7 @@
-// File: client-websocket-manager.test.ts
+// File: sync-client.test.ts
 import { describe, it, expect, beforeEach, afterEach, mock } from "bun:test";
-import { ClientWebSocketManager } from "./client-websocket-manager";
-import type { ClientWebSocketManagerConfig } from "./client-websocket-manager";
-import type { BaseClientMessage, BaseServerMessage } from "./client-websocket-types";
+import { SyncClientManager } from "./sync-client-manager";
+import type { BaseClientMessage, BaseServerMessage } from "./sync-client-types";
 
 /**
  * Because the 'WebSocket' global isn't always available when running Bun tests,
@@ -83,8 +82,8 @@ class MockWebSocket {
 // Attach our mock to globalThis so that `new WebSocket(...)` uses it
 (globalThis as any).WebSocket = MockWebSocket;
 
-describe("ClientWebSocketManager", () => {
-    let manager: ClientWebSocketManager<TestIncomingMessage, TestOutgoingMessage> | null = null;
+describe("SyncClientManager", () => {
+    let manager: SyncClientManager<TestIncomingMessage, TestOutgoingMessage> | null = null;
 
     afterEach(() => {
         // Disconnect and clear manager after each test.
@@ -94,7 +93,7 @@ describe("ClientWebSocketManager", () => {
 
     it("should construct and connect to the provided URL", () => {
         const testUrl = "ws://fake-url";
-        manager = new ClientWebSocketManager<TestIncomingMessage, TestOutgoingMessage>({
+        manager = new SyncClientManager<TestIncomingMessage, TestOutgoingMessage>({
             url: testUrl,
             debug: false,
         });
@@ -106,7 +105,7 @@ describe("ClientWebSocketManager", () => {
 
     it("should call onOpen when WebSocket opens", () => {
         let onOpenCalled = false;
-        manager = new ClientWebSocketManager<TestIncomingMessage, TestOutgoingMessage>({
+        manager = new SyncClientManager<TestIncomingMessage, TestOutgoingMessage>({
             url: "ws://fake-url",
             debug: false,
             onOpen: () => {
@@ -123,7 +122,7 @@ describe("ClientWebSocketManager", () => {
 
     it("should call onClose when WebSocket closes", () => {
         let onCloseCalled = false;
-        manager = new ClientWebSocketManager<TestIncomingMessage, TestOutgoingMessage>({
+        manager = new SyncClientManager<TestIncomingMessage, TestOutgoingMessage>({
             url: "ws://fake-url",
             debug: false,
             onClose: () => {
@@ -147,7 +146,7 @@ describe("ClientWebSocketManager", () => {
             return msg;
         });
 
-        manager = new ClientWebSocketManager<TestIncomingMessage, TestOutgoingMessage>({
+        manager = new SyncClientManager<TestIncomingMessage, TestOutgoingMessage>({
             url: "ws://fake-url",
             debug: false,
             validateOutgoingMessage: mockValidateOutgoing,
@@ -180,7 +179,7 @@ describe("ClientWebSocketManager", () => {
         });
 
         let handlerCalled = false;
-        manager = new ClientWebSocketManager<TestIncomingMessage, TestOutgoingMessage>({
+        manager = new SyncClientManager<TestIncomingMessage, TestOutgoingMessage>({
             url: "ws://fake-url",
             validateIncomingMessage: mockValidateIncoming,
             messageHandlers: {
@@ -206,7 +205,7 @@ describe("ClientWebSocketManager", () => {
 
     it("should handle auto-reconnect if enabled", async () => {
         let reconnectCalled = 0;
-        manager = new ClientWebSocketManager<TestIncomingMessage, TestOutgoingMessage>({
+        manager = new SyncClientManager<TestIncomingMessage, TestOutgoingMessage>({
             url: "ws://fake-url",
             debug: false,
             autoReconnect: true,

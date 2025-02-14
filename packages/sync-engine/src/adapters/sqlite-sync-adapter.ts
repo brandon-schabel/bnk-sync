@@ -1,10 +1,10 @@
 import { Database } from "bun:sqlite";
 import type {
-  BackendWebSocketPersistenceAdapter,
-  VersionedWebSocketData,
-} from "../backend-websocket-types";
+  SyncEnginePersistenceAdapter,
+  VersionedSyncData,
+} from "../sync-engine-types";
 
-export interface SQLiteWebSocketAdapterConfig {
+export interface SQLiteSyncAdapterConfig {
   path: string;
   tableName?: string;
 }
@@ -12,11 +12,11 @@ export interface SQLiteWebSocketAdapterConfig {
 /**
  * Stores the entire TState (as JSON) and version in a single SQLite row.
  */
-export class SQLiteWebSocketAdapter<TState> implements BackendWebSocketPersistenceAdapter<TState> {
+export class SQLiteSyncAdapter<TState> implements SyncEnginePersistenceAdapter<TState> {
   private db: Database;
   private tableName: string;
 
-  constructor(private config: SQLiteWebSocketAdapterConfig) {
+  constructor(private config: SQLiteSyncAdapterConfig) {
     this.tableName = config.tableName ?? "websocket_state";
     this.db = new Database(config.path);
   }
@@ -38,7 +38,7 @@ export class SQLiteWebSocketAdapter<TState> implements BackendWebSocketPersisten
     `);
   }
 
-  public async load(): Promise<VersionedWebSocketData<TState>> {
+  public async load(): Promise<VersionedSyncData<TState>> {
     const row = this.db
       .query(`SELECT data_json, version FROM ${this.tableName} WHERE id = 1`)
       .get() as { data_json: string; version: number };
