@@ -317,9 +317,9 @@ const manager = new SyncEngine<MyAppState, IncrementMessage>({
 Alternatively, store state in a JSON file:
 
 ```ts
-import { SyncEngine, FileWebSocketAdapter } from "@bnk/sync-engine";
+import { SyncEngine, SQLiteSyncAdapter } from "@bnk/sync-engine";
 
-const fileAdapter = new FileWebSocketAdapter<MyAppState>({
+const fileAdapter = new SQLiteSyncAdapter<MyAppState>({
   filePath: "./websocket-state.json",
   backupsDir: "./backups",  // optional
 });

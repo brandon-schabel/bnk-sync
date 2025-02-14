@@ -4,7 +4,7 @@ import type {
 } from "../sync-engine-types";
 
 /**
- * Configuration options for the FileWebSocketAdapter
+ * Configuration options for the SQLiteSyncAdapter
  */
 export interface FileSyncAdapterConfig<TState> {
     /**
@@ -62,7 +62,7 @@ export class FileSyncAdapter<TState>
      */
     private debugLog(...args: unknown[]): void {
         if (this.debug) {
-            console.log("[FileWebSocketAdapter]", ...args);
+            console.log("[SQLiteSyncAdapter]", ...args);
         }
     }
 

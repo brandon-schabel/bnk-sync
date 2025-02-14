@@ -243,14 +243,14 @@ export const mySyncManager = new SyncEngine<MyAppState, MyAppMessage>({
 
 ## File Persistence
 
-Alternatively, a **`FileWebSocketAdapter`** is available to store state on the filesystem as JSON:
+Alternatively, a **`SQLiteSyncAdapter`** is available to store state on the filesystem as JSON:
 
 ```ts
-import { SyncEngine, FileWebSocketAdapter } from "@bnk/sync-engine";
+import { SyncEngine, SQLiteSyncAdapter } from "@bnk/sync-engine";
 import { myHandlers } from "./message-handlers";
 import type { MyAppState, MyAppMessage } from "./my-types";
 
-const fileAdapter = new FileWebSocketAdapter<MyAppState>({
+const fileAdapter = new SQLiteSyncAdapter<MyAppState>({
   filePath: "./my-websocket-state.json",
   backupsDir: "./backups", // optional
 });
@@ -292,7 +292,7 @@ interface SyncEngineConfig<TState, TMessage> {
   // Function/schema to validate raw messages. Expects returning a TMessage or throwing an error.
   validateMessage?: (rawMessage: unknown) => TMessage;
 
-  // Persistence adapter for loading/saving state (e.g., SQLiteWebSocketAdapter or FileWebSocketAdapter).
+  // Persistence adapter for loading/saving state (e.g., SQLiteWebSocketAdapter or SQLiteSyncAdapter).
   adapter?: BackendWebSocketPersistenceAdapter<TState>;
 
   // If true, automatically increments an internal version on each state update.
